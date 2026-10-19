@@ -85,6 +85,8 @@ ContextMenu::ContextMenu(QWidget *parent) :
     ui->settings->setText(tr("Settings"));
     ui->stereo->setAction("toggleSbs");
     ui->stereo->setText(tr("Toggle SBS / XR output"));
+    ui->inputStereo->setAction("cycleInputLayout");
+    ui->inputStereo->setText(tr("Cycle input: Auto / 2D / Full SBS / Half SBS"));
     ui->settings->setIconPath(":/res/icons/common/menuitem/settings16.png");
     // -------------------------------------------------------------------------
     ui->openWith->setText(tr("Open with..."));

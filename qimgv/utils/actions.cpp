@@ -22,6 +22,7 @@ QList<QString> Actions::getList() {
 
 void Actions::init() {
     mActions.insert("toggleSbs", QVersionNumber(1,0,3));
+    mActions.insert("cycleInputLayout", QVersionNumber(1,2,0));
     mActions.insert("nextImage", QVersionNumber(0,6,2));
     mActions.insert("prevImage", QVersionNumber(0,6,2));
     mActions.insert("toggleFullscreen", QVersionNumber(0,6,2));

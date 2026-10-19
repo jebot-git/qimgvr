@@ -55,6 +55,7 @@ private:
 
 signals:
     void toggleSbs();
+    void cycleInputLayout();
     void open();
     void save();
     void saveAs();

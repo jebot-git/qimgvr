@@ -5,7 +5,7 @@ qimgvr is based on easymodo/qimgv at
 The separate Arc SBS image worker uses the official pinned Depth Anything V2
 Small model with Intel A770 OpenVINO/OpenCL acceleration.
 
-Install Arc SBS 0.3.0 first. The default worker Python is
+Install Arc SBS 0.4.0 first. The default worker Python is
 `~/.local/opt/arc-sbs/current/venv/bin/python`; override with
 `QIMGV_SBS_PYTHON=/absolute/path/to/python`. Models and OpenVINO caches follow
 the Arc SBS user-data paths. No proprietary VisionDepth3D code is used.
@@ -64,3 +64,49 @@ The qimgvr local installation enables mpv, OpenCV scaling, Exiv2 and KDE
 integration. Use `python3 scripts/install-local.py` to build/install all features;
 the image-only example above is useful for development without mpv/OpenCV.
 See README.md for the full build, compatibility launchers and system replacement.
+
+## Existing stereo images
+
+The opener recognizes SBS/FSBS/FULL-SBS and HSBS/HALF-SBS filename tokens,
+JPEG JPS descriptors and PNG sTER metadata. JPS/PNS extensions default to
+right-eye-first (cross-eyed); LR/PARALLEL filename tokens select left-first.
+Explicit metadata takes precedence over filename hints. Wide aspect ratios alone
+are not treated as stereo. Half-SBS is expanded and right-first pairs are reordered
+before presentation. Existing stereo skips model loading and depth inference.
+Unsupported stereo arrangements report an error rather than synthesizing depth.
+
+Press **F9** (or use the context menu) to cycle Auto, 2D, Full SBS and Half SBS.
+The explicit selection overrides detection; use it for ambiguous/unmarked images:
+
+```bash
+qimgvr --input-layout full-sbs unmarked.png
+qimgvr --input-layout 2d panorama.jpg
+```
+
+The extension convention follows [sView's stereo format documentation](https://github.com/gkv311/sview/blob/master/docs/stereoformats.md).
+
+## Optional DomeD integration
+
+Requires Arc SBS 0.4.0 and DomeD with the qimgvr integration endpoint and per-eye
+composition support. Enable the default viewer only for the Dome desktop:
+
+```bash
+python3 scripts/install-domed.py
+# Restore the previous Dome associations:
+python3 scripts/install-domed.py --disable
+```
+
+The installer preserves other desktops' defaults and records previous Dome
+associations under `~/.local/state/qimgvr`. Launch manually with
+`qimgvr --domed image.jpg`. File URLs with escaped characters are supported.
+
+When launched inside DomeD with an active XR renderer, qimgvr opens a separate
+frameless SBS window on that compositor's XR socket. The normal viewer remains
+on the desktop. DomeD submits each image half exclusively to its corresponding
+OpenXR eye, for quad and cylinder layers. Navigation updates the owned window;
+closing the viewer or disabling output closes it. An inactive XR session creates
+no XR window. This mode does not start a headset session.
+
+Discovery validates the current Wayland socket, same-user compositor PID and its
+private session record before contacting the advertised numeric loopback port.
+The integration is opt-in and uses only the current compositor session.

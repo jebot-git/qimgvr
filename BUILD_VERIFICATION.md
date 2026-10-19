@@ -41,7 +41,7 @@ Checks completed:
 - `sudo dnf5 remove --no-autoremove --assumeyes qimgv` completed successfully in
   an interactive sudo terminal. `rpm -q qimgv` confirms it is absent, and
   `/usr/bin/qimgv` has been removed. Shared runtime dependencies were retained.
-- `qimgv`, `qimgvr`, and `qimgv-sbs` resolve to local qimgvr 1.1.0. JPEG and PNG
+- `qimgv`, `qimgvr`, and `qimgv-sbs` resolve to local qimgvr 1.2.0. JPEG and PNG
   defaults resolve to `qimgvr.desktop`. Compatibility desktop entries also launch
   qimgvr. Desktop entries pass validation. Existing settings remain compatible.
 
@@ -52,3 +52,10 @@ Machine-local validation media and logs are outside the repository under
 `~/.cache/qimgvr-validation` and `~/.cache/qimgv-build`.
 
 Reopen already-running viewer windows to load the completed fork build.
+
+Version 1.2.0: both native test targets passed with all optional features enabled.
+DomeD's isolated integration test exercised the real default MIME opener, Unicode
+file URLs, distinct per-eye image pixels, XR-only window placement, owner cleanup,
+inactive-session handling and ordinary A770 depth conversion. An existing SBS
+image succeeded with a deliberately missing model. The test used a simulated XR
+heartbeat; actual DomeD through-headset perception has not been verified.

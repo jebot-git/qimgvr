@@ -14,9 +14,12 @@ public:
     explicit SbsController(QObject *parent = nullptr);
     ~SbsController();
     void setMode(const QString &mode);
+    void setDomeIntegration(bool enabled) { domeIntegration = enabled; }
+    QString inputFormat() const { return inputLayout; }
+    void setInputLayout(const QString &layout) { inputLayout = layout; ++generation; if(!source.isNull() && currentMode != "off") ensureWorker(); }
     QString mode() const { return currentMode; }
     bool headsetConnected() const { return connected; }
-    void setSource(const QImage &image);
+    void setSource(const QImage &image, const QString &fileName = QString());
 signals:
     void message(const QString &text);
     void failed(const QString &text);
@@ -27,6 +30,9 @@ private:
     QTimer poll;
     std::unique_ptr<StereoWindow> preview;
     QImage source;
+    QString sourceName;
+    QString inputLayout = "auto";
+    bool domeIntegration = false;
     QByteArray buffer;
     QString currentMode = "auto";
     QString currentOutput;

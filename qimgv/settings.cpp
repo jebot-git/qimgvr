@@ -311,7 +311,7 @@ void Settings::setMpvBinary(QString path) {
 //------------------------------------------------------------------------------
 QList<QByteArray> Settings::supportedFormats() {
     auto formats = QImageReader::supportedImageFormats();
-    formats << "jfif";
+    formats << "jfif" << "jps" << "pns";
     if(videoPlayback())
         formats << mVideoFormatsMap.values();
     formats.removeAll("pdf");

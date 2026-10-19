@@ -2,6 +2,7 @@
 #include <QCommandLineParser>
 #include <QStyleFactory>
 #include <QEvent>
+#include <QTextStream>
 
 #include "appversion.h"
 #include "settings.h"
@@ -137,6 +138,9 @@ int main(int argc, char *argv[]) {
             QCoreApplication::translate("main", "Show build options.")},
         {"sbs", "Convert still images to SBS; display in connected WayVR or a local stereo window."},
         {"no-sbs", "Disable automatic SBS output to a connected headset."},
+        {"domed", "Use the caller's DomeD XR session instead of WayVR (optional integration)."},
+        {"input-layout", "Input format: auto, 2d, full-sbs or half-sbs. Explicit stereo inputs skip depth conversion.", "layout", "auto"},
+        {"dome-present", "Internal: open an SBS client as a new DomeD XR window."},
         {"sbs-present", "Present an existing full-SBS image on a squeezed stereo surface (internal XR viewer).", "image"},
         {"sbs-title", "Unique title for an XR stereo overlay.", "title"},
         {"sbs-present-encoded", "Internal XR presenter: base64-encoded UTF-8 image path.", "base64"},
@@ -149,12 +153,17 @@ int main(int argc, char *argv[]) {
         if(parser.isSet("sbs-title"))
             QGuiApplication::setApplicationDisplayName(parser.value("sbs-title"));
         StereoWindow window;
+        if(parser.isSet("dome-present")) {
+            QGuiApplication::setDesktopFileName("org.qimgvr.Sbs");
+            window.setWindowFlag(Qt::FramelessWindowHint);
+        }
         if(parser.isSet("sbs-title")) window.setWindowTitle(parser.value("sbs-title"));
         const QString image = parser.isSet("sbs-present-encoded")
             ? QString::fromUtf8(QByteArray::fromBase64(parser.value("sbs-present-encoded").toLatin1()))
             : parser.value("sbs-present");
         window.watchFile(image);
-        window.showFullScreen();
+        if(parser.isSet("dome-present")) window.show();
+        else window.showFullScreen();
         return a.exec();
     }
 
@@ -176,6 +185,13 @@ int main(int argc, char *argv[]) {
 // -----------------------------------------------------------------------------
 
     Core core;
+    const QString inputLayout = parser.value("input-layout");
+    if(!QStringList{"auto", "2d", "full-sbs", "half-sbs"}.contains(inputLayout)) {
+        QTextStream(stderr) << "Invalid --input-layout; use auto, 2d, full-sbs or half-sbs\n";
+        return 2;
+    }
+    core.setDomeIntegration(parser.isSet("domed"));
+    core.setInputLayout(inputLayout);
     core.setSbsMode(parser.isSet("no-sbs") ? "off" : parser.isSet("sbs") ? "always" : "auto");
 
 #ifdef __APPLE__

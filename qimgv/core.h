@@ -41,6 +41,8 @@ public:
     Core();
     void showGui();
     void setSbsMode(const QString &mode) { sbs.setMode(mode); }
+    void setDomeIntegration(bool enabled) { sbs.setDomeIntegration(enabled); }
+    void setInputLayout(const QString &layout) { sbs.setInputLayout(layout); }
 
 public slots:
     void updateInfoString();

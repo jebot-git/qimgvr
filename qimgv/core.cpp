@@ -76,6 +76,12 @@ void Core::initComponents() {
 }
 
 void Core::connectComponents() {
+    connect(actionManager, &ActionManager::cycleInputLayout, this, [this] {
+        const QStringList layouts{"auto", "2d", "full-sbs", "half-sbs"};
+        const int next = (layouts.indexOf(sbs.inputFormat()) + 1) % layouts.size();
+        sbs.setInputLayout(layouts[next]);
+        mw->showMessage(tr("Input format: ") + layouts[next]);
+    });
     connect(&sbs, &SbsController::message, mw, qOverload<QString>(&MW::showMessage));
     connect(&sbs, &SbsController::failed, mw, &MW::showError);
     connect(actionManager, &ActionManager::toggleSbs, this, [this] {
@@ -1220,7 +1226,7 @@ bool Core::loadPath(QString path) {
     if(path.isEmpty())
         return false;
     if(path.startsWith("file://", Qt::CaseInsensitive))
-        path.remove(0, 7);
+        path = QUrl(path).toLocalFile();
 
     stopSlideshow();
     state.delayModel = false;
@@ -1510,7 +1516,7 @@ void Core::guiSetImage(std::shared_ptr<Image> img) {
         mw->showImage(img->getPixmap());
         auto still = dynamic_cast<ImageStatic *>(img.get());
         const auto pixels = still ? still->getImage() : nullptr;
-        sbs.setSource(pixels ? *pixels : QImage());
+        sbs.setSource(pixels ? *pixels : QImage(), state.currentFilePath);
     } else if(type == ANIMATED) {
         sbs.setSource(QImage());
         auto animated = dynamic_cast<ImageAnimated *>(img.get());

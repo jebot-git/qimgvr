@@ -508,6 +508,9 @@
           <widget class="ContextMenuItem" name="stereo" native="true"/>
          </item>
          <item>
+          <widget class="ContextMenuItem" name="inputStereo" native="true"/>
+         </item>
+         <item>
           <spacer name="verticalSpacer_4">
            <property name="orientation">
             <enum>Qt::Vertical</enum>

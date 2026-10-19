@@ -20,6 +20,7 @@ ActionManager *ActionManager::getInstance() {
 //------------------------------------------------------------------------------
 void ActionManager::initDefaults() {
     actionManager->defaults.insert("F8", "toggleSbs");
+    actionManager->defaults.insert("F9", "cycleInputLayout");
     actionManager->defaults.insert("Right", "nextImage");
     actionManager->defaults.insert("Left", "prevImage");
     actionManager->defaults.insert("XButton2", "nextImage");
@@ -110,6 +111,9 @@ void ActionManager::initShortcuts() {
     if(!actionManager->shortcuts.contains("F8") &&
             !actionManager->shortcuts.values().contains("toggleSbs"))
         actionManager->shortcuts.insert("F8", "toggleSbs");
+    if(!actionManager->shortcuts.contains("F9") &&
+            !actionManager->shortcuts.values().contains("cycleInputLayout"))
+        actionManager->shortcuts.insert("F9", "cycleInputLayout");
 }
 //------------------------------------------------------------------------------
 void ActionManager::addShortcut(const QString &keys, const QString &action) {

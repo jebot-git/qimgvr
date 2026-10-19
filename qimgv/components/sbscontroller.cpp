@@ -46,8 +46,9 @@ void SbsController::setMode(const QString &mode) {
     else if(!source.isNull()) ensureWorker();
 }
 
-void SbsController::setSource(const QImage &image) {
+void SbsController::setSource(const QImage &image, const QString &fileName) {
     source = image;
+    sourceName = fileName;
     ++generation;
     if(source.isNull()) {
         hidePending = true;
@@ -64,7 +65,9 @@ void SbsController::ensureWorker() {
         if(!QFile::exists(python)) python = QStandardPaths::findExecutable("python3");
         buffer.clear();
         busy = false;
-        worker.start(python, {"-u", "-m", "arc_sbs.image_worker"});
+        QStringList arguments{"-u", "-m", "arc_sbs.image_worker"};
+        if(domeIntegration) arguments << "--xr-backend" << "domed";
+        worker.start(python, arguments);
     } else dispatch();
     poll.start();
 }
@@ -94,7 +97,10 @@ void SbsController::dispatch() {
             return;
         }
         emit message(tr("Preparing SBS image…"));
+        QJsonObject metadata;
+        for(const auto &key : source.textKeys()) metadata.insert(key, source.text(key));
         send({{"action", "convert"}, {"id", qint64(generation)}, {"mode", currentMode},
+              {"source_name", sourceName}, {"metadata", metadata}, {"input_layout", inputLayout},
               {"input", input}, {"output", temporary.filePath(QString::number(generation) + ".png")}});
     } else if(currentMode != "off" && !source.isNull()) send({{"action", "probe"}});
 }
@@ -143,6 +149,7 @@ void SbsController::response(const QJsonObject &result) {
         if(result["status"] == "skipped") return;
         if(!currentOutput.isEmpty()) QFile::remove(currentOutput);
         currentOutput = result["output"].toString();
+        if(result["depth_bypassed"].toBool()) emit message(tr("Existing SBS image — depth conversion skipped"));
         qInfo().noquote() << "SBS image ready:" << result["device"].toString()
                           << "seconds:" << result["seconds"].toDouble();
         emit converted(generation, currentOutput);
