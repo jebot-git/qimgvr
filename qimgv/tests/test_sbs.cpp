@@ -41,11 +41,34 @@ private slots:
         QImage capture = window.grab().toImage();
         QCOMPARE(capture.pixelColor(100, 100), QColor(Qt::red));
         QCOMPARE(capture.pixelColor(300, 100), QColor(Qt::blue));
-        QCOMPARE(capture.pixelColor(199, 100), QColor(Qt::black));
-        QCOMPARE(capture.pixelColor(200, 100), QColor(Qt::black));
-        QCOMPARE(capture.pixelColor(50, 100), QColor(Qt::black));
-        QCOMPARE(capture.pixelColor(250, 100), QColor(Qt::black));
+        QCOMPARE(capture.pixelColor(199, 100), QColor(Qt::transparent));
+        QCOMPARE(capture.pixelColor(200, 100), QColor(Qt::transparent));
+        QCOMPARE(capture.pixelColor(50, 100), QColor(Qt::transparent));
+        QCOMPARE(capture.pixelColor(250, 100), QColor(Qt::transparent));
         QVERIFY(!window.setImage(QImage(81, 40, QImage::Format_RGB32)));
+    }
+
+    void canvasPreservesAlphaAndClearsPreviousImage() {
+        StereoWindow window;
+        window.resize(400, 200);
+        QImage image(160, 40, QImage::Format_RGBA8888);
+        image.fill(Qt::transparent);
+        { QPainter p(&image);
+          p.fillRect(16, 8, 48, 24, QColor(255, 0, 0, 128));
+          p.fillRect(96, 8, 48, 24, QColor(0, 0, 255, 64)); }
+        QVERIFY(window.setImage(image));
+        window.show();
+        QTest::qWait(20);
+        QImage capture = window.grab().toImage();
+        QCOMPARE(capture.pixelColor(0, 0).alpha(), 0);
+        QCOMPARE(capture.pixelColor(100, 100), QColor(255, 0, 0, 128));
+        QCOMPARE(capture.pixelColor(300, 100), QColor(0, 0, 255, 64));
+        image.fill(Qt::transparent);
+        QVERIFY(window.setImage(image));
+        QTest::qWait(20);
+        capture = window.grab().toImage();
+        QCOMPARE(capture.pixelColor(100, 100).alpha(), 0);
+        QCOMPARE(capture.pixelColor(300, 100).alpha(), 0);
     }
 
     void coalescesNavigationAndSuppressesDisabledResults() {
@@ -74,10 +97,14 @@ private slots:
             controller.setSource(image);
             QTRY_VERIFY_WITH_TIMEOUT(messages.count() > 0, 2000);
             image.fill(Qt::blue);
+            image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            image.fill(QColor(0, 0, 255, 128));
+            image.setPixelColor(0, 0, QColor(Qt::transparent));
             controller.setSource(image);
             QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 3000);
             const QString output = ready.first()[1].toString();
-            QCOMPARE(QImage(output).pixelColor(10, 10), QColor(Qt::blue));
+            QCOMPARE(QImage(output).pixelColor(10, 10), QColor(0, 0, 255, 128));
+            QCOMPARE(QImage(output).pixelColor(0, 0).alpha(), 0);
             QCOMPARE(errors.count(), 0);
             image.fill(Qt::green);
             controller.setSource(image);

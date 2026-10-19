@@ -5,7 +5,7 @@ qimgvr is based on easymodo/qimgv at
 The separate Arc SBS image worker uses the official pinned Depth Anything V2
 Small model with Intel A770 OpenVINO/OpenCL acceleration.
 
-Install Arc SBS 0.4.0 first. The default worker Python is
+Install Arc SBS 0.4.1 first. The default worker Python is
 `~/.local/opt/arc-sbs/current/venv/bin/python`; override with
 `QIMGV_SBS_PYTHON=/absolute/path/to/python`. Models and OpenVINO caches follow
 the Arc SBS user-data paths. No proprietary VisionDepth3D code is used.
@@ -33,8 +33,7 @@ after subsequent conversions; disabling SBS hides it and closing qimgv terminate
 its owned presenter. Connection state is checked every three seconds while idle.
 
 Only static, SDR images are converted; animations/videos stay in the regular
-viewer and hide the image overlay. qimgv supplies its oriented/edited pixels,
-composited on black. Images are limited to a 3840-pixel longest edge and rounded
+viewer and hide the image overlay. qimgv supplies its oriented/edited pixels with alpha preserved. Images are limited to a 3840-pixel longest edge and rounded
 to even dimensions. Internal intermediate output is full SBS; the 2560×1440 XR
 surface uses half-SBS transport. This prototype estimates hidden surfaces and
 can show edge/fill artifacts. Actual through-headset perception needs user review.
@@ -110,3 +109,29 @@ no XR window. This mode does not start a headset session.
 Discovery validates the current Wayland socket, same-user compositor PID and its
 private session record before contacting the advertised numeric loopback port.
 The integration is opt-in and uses only the current compositor session.
+
+## Transparency (qimgvr 1.2.1 / Arc SBS 0.4.1)
+
+Still-image snapshots, existing stereo bypass, and CPU/A770 depth warping retain
+RGBA coverage. Transparent pixels are treated as the farthest background so
+invisible RGB cannot occlude a visible object. Both eyes warp color and alpha
+through the same visibility map. Half-SBS packing and input resizing filter
+premultiplied colors to avoid dark/colored fringes at soft edges; stored PNGs
+use straight alpha. Existing full-SBS RGBA images bypass the model unchanged.
+16-bit source PNGs are quantized to the worker's existing 8-bit SDR pipeline.
+
+The SBS presenter uses an alpha-capable Qt window and clears to transparent,
+including fitted margins and previously painted pixels. Qt submits premultiplied
+Wayland pixels; DomeD and WayVR use alpha-blended OpenXR layers. The normal
+viewer's transparency grid is never baked into the conversion snapshot.
+
+Depth estimation still uses RGB composited on black; alpha is preserved coverage,
+not a model of optical transmission/refraction through glass. Hidden surfaces
+remain estimated with the existing renderer's limitations. Video conversion
+continues using its original three-channel opaque pipeline.
+
+Validation covers native Qt snapshot/presenter alpha, exact CPU/A770 RGBA parity,
+soft-edge filtering, empty transparent images and 16-bit input. DomeD's private
+compositor test verifies transparent margins, straight-alpha PNGs and exported
+premultiplied pixels for both existing stereo and real A770 2D conversion.
+Through-headset blending perception has not been assessed.

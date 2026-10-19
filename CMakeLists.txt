@@ -1,7 +1,7 @@
 # qimgv root
 cmake_minimum_required(VERSION 3.13)
 project(qimgvr
-    VERSION 1.2.0
+    VERSION 1.2.1
     HOMEPAGE_URL "https://github.com/jebot-git/qimgvr"
     LANGUAGES CXX)
 

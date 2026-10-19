@@ -41,7 +41,7 @@ Checks completed:
 - `sudo dnf5 remove --no-autoremove --assumeyes qimgv` completed successfully in
   an interactive sudo terminal. `rpm -q qimgv` confirms it is absent, and
   `/usr/bin/qimgv` has been removed. Shared runtime dependencies were retained.
-- `qimgv`, `qimgvr`, and `qimgv-sbs` resolve to local qimgvr 1.2.0. JPEG and PNG
+- `qimgv`, `qimgvr`, and `qimgv-sbs` resolve to local qimgvr 1.2.1. JPEG and PNG
   defaults resolve to `qimgvr.desktop`. Compatibility desktop entries also launch
   qimgvr. Desktop entries pass validation. Existing settings remain compatible.
 
@@ -59,3 +59,11 @@ file URLs, distinct per-eye image pixels, XR-only window placement, owner cleanu
 inactive-session handling and ordinary A770 depth conversion. An existing SBS
 image succeeded with a deliberately missing model. The test used a simulated XR
 heartbeat; actual DomeD through-headset perception has not been verified.
+
+Transparency update (2026-10-20, qimgvr 1.2.1 / Arc SBS 0.4.1): native SBS and
+mpv playback targets passed. Qt tests verify premultiplied source snapshot
+coverage, separate per-eye partial alpha, transparent margins and clearing old
+pixels. Arc's expanded CPU/A770 suite and DomeD integration verify RGBA conversion
+and existing-SBS bypass. The compositor exported 50% red as `[128,0,0,128]` and
+25% blue as `[0,0,64,64]`, with alpha-zero margins. No DomeD binary change was
+needed; its existing premultiplied OpenXR composition path retains this alpha.

@@ -5,6 +5,8 @@
 #include <QPainter>
 
 StereoWindow::StereoWindow(QWidget *parent) : QWidget(parent) {
+    setAttribute(Qt::WA_TranslucentBackground);
+    setAutoFillBackground(false);
     setWindowTitle(tr("qimgvr — SBS image"));
     resize(1280, 720);
     setMinimumSize(200, 100);
@@ -38,7 +40,10 @@ void StereoWindow::watchFile(const QString &file) {
 
 void StereoWindow::paintEvent(QPaintEvent *) {
     QPainter painter(this);
-    painter.fillRect(rect(), Qt::black);
+    // Clear old content and margins, including alpha, before each update.
+    painter.setCompositionMode(QPainter::CompositionMode_Source);
+    painter.fillRect(rect(), Qt::transparent);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     if(image.isNull()) return;
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
     const int eyeWidth = image.width() / 2;

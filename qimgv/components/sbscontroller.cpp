@@ -3,7 +3,6 @@
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
-#include <QPainter>
 #include <QStandardPaths>
 
 SbsController::SbsController(QObject *parent) : QObject(parent) {
@@ -87,11 +86,11 @@ void SbsController::dispatch() {
         QImage scaled = source;
         if(source.width() > 3840 || source.height() > 3840)
             scaled = source.scaled(3840, 3840, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        QImage flattened(scaled.size(), QImage::Format_RGB888);
-        flattened.fill(Qt::black);
-        { QPainter painter(&flattened); painter.drawImage(0, 0, scaled); }
+        // PNG stores straight alpha; retain the viewer's oriented/edited pixels.
+        QImage snapshot = scaled.convertToFormat(scaled.hasAlphaChannel()
+            ? QImage::Format_RGBA8888 : QImage::Format_RGB888);
         const QString input = temporary.filePath("input.png");
-        if(!flattened.save(input, "PNG")) {
+        if(!snapshot.save(input, "PNG")) {
             completed = generation;
             emit failed(tr("Cannot save image for SBS conversion"));
             return;

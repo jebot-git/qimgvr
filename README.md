@@ -16,7 +16,7 @@ qimgvr --no-sbs /path/to/video.mp4
 Still photos convert in a persistent background process. Browse normally while
 the latest image is processed; the result updates a dedicated SBS overlay in the
 connected WiVRn/WayVR session. F8 or **Toggle SBS / XR output** toggles output.
-Images use qimgv's oriented/edited pixels; animations and videos use the ordinary
+Images use qimgv's oriented/edited pixels with transparency preserved; animations and videos use the ordinary
 viewer. See [SBS_XR.md](SBS_XR.md) for stereo controls and limitations.
 
 Optional DomeD output, existing SBS detection and F9 input overrides are described
@@ -53,7 +53,7 @@ updates image associations and backs up existing launchers, settings and MIME
 configuration in `~/.local/state/qimgvr/backups`. Existing qimgv settings remain
 at `~/.config/qimgv`; qimgvr uses its own thumbnail/cache directory.
 
-SBS inference requires [Arc SBS](https://github.com/jebot-git/arc-sbs) >=0.4.0,
+SBS inference requires [Arc SBS](https://github.com/jebot-git/arc-sbs) >=0.4.1,
 the separately prepared pinned Depth Anything V2 Small model, and A770
 OpenVINO/OpenCL drivers. Default worker interpreter:
 `~/.local/opt/arc-sbs/current/venv/bin/python`; override with `QIMGV_SBS_PYTHON`.
