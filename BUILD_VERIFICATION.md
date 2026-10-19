@@ -4,7 +4,7 @@ Verified 2026-10-19 on Nobara 44 x86_64, GCC 16.2.1, Qt 6.11.2.
 
 qimgvr preserves the qimgv history through upstream revision
 `3127a2d211b124ad4fcf853d01e6df9323bdfdc3` and the local SBS implementation
-commit `2eab8823`. It has its own private repository and `main` branch.
+commit `2eab8823`. It has its own repository and `main` branch.
 
 Enabled Release features: `USE_MPV USE_EXIV2 USE_KDE_BLUR USE_OPENCV`.
 Linked system runtimes: mpv 0.41.0, OpenCV 4.13.0 core/imgproc, Exiv2 0.28.9,
