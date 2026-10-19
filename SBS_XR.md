@@ -1,6 +1,6 @@
 # SBS images in an active XR session
 
-This local branch is based on easymodo/qimgv at
+qimgvr is based on easymodo/qimgv at
 `3127a2d211b124ad4fcf853d01e6df9323bdfdc3` and remains GPLv3.
 The separate Arc SBS image worker uses the official pinned Depth Anything V2
 Small model with Intel A770 OpenVINO/OpenCL acceleration.
@@ -11,9 +11,9 @@ Install Arc SBS 0.3.0 first. The default worker Python is
 the Arc SBS user-data paths. No proprietary VisionDepth3D code is used.
 
 ```bash
-qimgv-sbs /path/to/image.jpg       # automatic XR output when connected
-qimgv-sbs --sbs /path/to/image.jpg # also show local SBS if disconnected
-qimgv-sbs --no-sbs image.jpg       # ordinary qimgv behavior
+qimgvr /path/to/image.jpg       # automatic XR output when connected
+qimgvr --sbs /path/to/image.jpg # also show local SBS if disconnected
+qimgvr --no-sbs image.jpg       # ordinary qimgv behavior
 ```
 
 F8 or **Toggle SBS / XR output** in the context menu toggles conversion. In
@@ -42,7 +42,7 @@ can show edge/fill artifacts. Actual through-headset perception needs user revie
 Existing full-SBS images can be shown without depth conversion:
 
 ```bash
-qimgv-sbs --sbs-present /path/to/full-sbs.png
+qimgvr --sbs-present /path/to/full-sbs.png
 ```
 
 This internal presentation mode watches atomically replaced files and uses a
@@ -54,13 +54,13 @@ development packages:
 ```bash
 cmake -S . -B build -DUSE_QT5=OFF -DVIDEO_SUPPORT=OFF \
   -DOPENCV_SUPPORT=OFF -DSBS_TESTS=ON -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX="$HOME/.local/opt/qimgv-sbs"
+  -DCMAKE_INSTALL_PREFIX="$HOME/.local/opt/qimgvr"
 cmake --build build --parallel 8
 ctest --test-dir build --output-on-failure
 cmake --install build
 ```
 
-This local build disables optional mpv video and OpenCV scaling support because
-their development packages are absent. The installed system qimgv is retained.
-See the companion Arc SBS repository's `integrations/qimgv` for the pinned patch
-and reproducible installer.
+The qimgvr local installation enables mpv, OpenCV scaling, Exiv2 and KDE
+integration. Use `python3 scripts/install-local.py` to build/install all features;
+the image-only example above is useful for development without mpv/OpenCV.
+See README.md for the full build, compatibility launchers and system replacement.

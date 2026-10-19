@@ -69,6 +69,7 @@ endif()
 # C++ STANDARD
 target_compile_features(qimgv PRIVATE cxx_std_17)
 set_target_properties(qimgv PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(qimgv PROPERTIES OUTPUT_NAME qimgvr)
 
 # LINK STUFF
 target_link_libraries(qimgv PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Svg Qt${QT_VERSION_MAJOR}::PrintSupport)
@@ -91,7 +92,7 @@ if(VIDEO_SUPPORT)
         ADD_DEFINITIONS(-D_QIMGV_PLUGIN_DIR="plugins")
         ADD_DEFINITIONS(-D_QIMGV_PLAYER_PLUGIN="player_mpv.dll")
     else()
-        ADD_DEFINITIONS(-D_QIMGV_PLUGIN_DIR="${QIMGV_PLUGIN_DIR}")
+        ADD_DEFINITIONS(-D_QIMGV_PLUGIN_DIR="${CMAKE_INSTALL_FULL_LIBDIR}/qimgvr")
         ADD_DEFINITIONS(-D_QIMGV_PLAYER_PLUGIN="player_mpv.so")
     endif()
 endif()
@@ -132,7 +133,7 @@ endif()
 install(TARGETS qimgv DESTINATION bin)
 
 # .desktop
-install(FILES distrib/qimgv.desktop
+install(FILES distrib/qimgvr.desktop
     DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/applications)
 
 # icons
@@ -144,7 +145,7 @@ install(FILES distrib/hicolor/scalable/apps/qimgv.svg
     DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/scalable/apps)
 
 # AppData manifest
-install(FILES distrib/qimgv.appdata.xml DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/metainfo)
+install(FILES distrib/qimgvr.metainfo.xml DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/metainfo)
 
 # Install internationalization language files
 if(WIN32)

@@ -1,8 +1,8 @@
 # qimgv root
 cmake_minimum_required(VERSION 3.13)
-project(qimgv
-    VERSION 1.0.2
-    HOMEPAGE_URL "https://github.com/easymodo/qimgv"
+project(qimgvr
+    VERSION 1.1.0
+    HOMEPAGE_URL "https://github.com/jebot-git/qimgvr"
     LANGUAGES CXX)
 
 message(STATUS "Build configuration: " ${CMAKE_BUILD_TYPE})
@@ -24,8 +24,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 option(EXIV2 "For reading/writing exif tags" ON)
 option(VIDEO_SUPPORT "Enable video support" ON)
 option(OPENCV_SUPPORT "Enable HQ scaling via OpenCV" ON)
-option(KDE_SUPPORT "Support blur when using KDE" OFF)
-option(USE_QT5 "Build with Qt5 if available" ON)
+option(KDE_SUPPORT "Support blur when using KDE" ON)
+option(USE_QT5 "Build with Qt5 if available" OFF)
 
 if(UNIX AND NOT APPLE)
     set(QT_EXTERN_PATH "" CACHE STRING "Tell compile external QT path, example: (/opt/Qt/6.2.0/gcc_64)")
@@ -92,4 +92,14 @@ endif()
 
 if(VIDEO_SUPPORT)
     add_subdirectory(plugins/player_mpv)
+    if(SBS_TESTS)
+        add_executable(test_player qimgv/tests/test_player.cpp qimgv/gui/viewers/videoplayer.cpp)
+        target_include_directories(test_player PRIVATE qimgv)
+        target_compile_features(test_player PRIVATE cxx_std_17)
+        target_link_libraries(test_player PRIVATE Qt${QT_VERSION_MAJOR}::Test Qt${QT_VERSION_MAJOR}::Widgets)
+        target_compile_definitions(test_player PRIVATE PLAYER_PLUGIN="$<TARGET_FILE:player_mpv>")
+        add_dependencies(test_player player_mpv)
+        add_test(NAME mpv_playback COMMAND test_player)
+        set_tests_properties(mpv_playback PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=xcb")
+    endif()
 endif()

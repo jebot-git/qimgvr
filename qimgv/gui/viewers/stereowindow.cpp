@@ -5,7 +5,7 @@
 #include <QPainter>
 
 StereoWindow::StereoWindow(QWidget *parent) : QWidget(parent) {
-    setWindowTitle(tr("qimgv — SBS image"));
+    setWindowTitle(tr("qimgvr — SBS image"));
     resize(1280, 720);
     setMinimumSize(200, 100);
     timer.setInterval(150);

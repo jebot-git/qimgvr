@@ -57,6 +57,6 @@ private:
     void handle_mpv_event(mpv_event *event);
     static void on_update(void *ctx);
 
-    mpv_handle *mpv;
-    mpv_render_context *mpv_gl;
+    mpv_handle *mpv = nullptr;
+    mpv_render_context *mpv_gl = nullptr;
 };

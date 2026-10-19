@@ -1,225 +1,75 @@
-## :exclamation: Updates may be slow due to war in Ukraine :sunflower: :sunflower: :sunflower:
+# qimgvr
 
-qimgv | Current version: 1.0.2
-=====
-Image viewer. Fast, easy to use. Optional video support.
+Qt6 image viewer with Intel Arc accelerated 2D-to-SBS conversion and automatic
+output in an active WiVRn/WayVR XR session. Independent GPLv3 fork of
+[easymodo/qimgv](https://github.com/easymodo/qimgv), preserving its history and
+the upstream `3127a2d211b124ad4fcf853d01e6df9323bdfdc3` base. Original qimgv
+features, authors and screenshots are documented in [README_UPSTREAM.md](README_UPSTREAM.md).
 
-## Screenshots
-
-Main window & panel        |  Folder view   |  Settings window  
-:-------------------------:|:-------------------------:|:-------------------------:|
-[![img1](qimgv/distrib/screenshots/qimgv0.9_1_thumb.jpg)](qimgv/distrib/screenshots/qimgv0.9_1.jpg?raw=true)  |  [![img2](qimgv/distrib/screenshots/qimgv0.9_2_thumb.jpg)](qimgv/distrib/screenshots/qimgv0.9_2.jpg?raw=true) | [![img3](qimgv/distrib/screenshots/qimgv_3_thumb.jpg)](qimgv/distrib/screenshots/qimgv_3.jpg?raw=true)
-
-## Key features:
-
-- Simple UI
-
-- Fast
-
-- Easy to use
-
-- Fully configurable, including themes, shortcuts
-
-- High quality scaling
-
-- Basic image editing: Crop, Rotate and Resize
-
-- Ability to quickly copy / move images to different folders
-
-- Experimental video playback via libmpv
-
-- Folder view mode
-
-- Ability to run shell scripts
-
-## Default control scheme:
-
-| Action  | Shortcut |
-| ------------- | ------------- |
-| Next image  | Right arrow / MouseWheel |
-| Previous image  | Left arrow / MouseWheel |
-| Goto first image  | Home |
-| Goto last image  | End |
-| Zoom in  | Ctrl+MouseWheel / Crtl+Up |
-| Zoom out  | Ctrl+MouseWheel / Crtl+Down |
-| Zoom (alt. method) | Hold right mouse button & move up / down |
-| Fit mode: window | 1 |
-| Fit mode: width | 2 |
-| Fit mode: 1:1 (no scaling) | 3 |
-| Switch fit modes  | Space |
-| Toggle fullscreen mode  | DoubleClick / F / F11 |
-| Exit fullscreen mode | Esc |
-| Show EXIF panel  | I |
-| Crop image  | X |
-| Resize image  | R |
-| Rotate left  | Ctrl+L |
-| Rotate Right  | Ctrl+R |
-| Open containing directory | Ctrl+D |
-| Slideshow mode | ~ |
-| Shuffle mode | Ctrl+~ |
-| Quick copy  | C |
-| Quick move  | M |
-| Move to trash | Delete |
-| Delete file  | Shift+Delete |
-| Save  | Ctrl+S |
-| Save As  | Ctrl+Shift+S |
-| Folder view | Enter / Backspace |
-| Open | Ctrl+O |
-| Print / Export PDF | Ctrl+P |
-| Settings  | P |
-| Exit application | Esc / Ctrl+Q / Alt+X / MiddleClick |
-
-... and more.
-
-Note: you can configure every shortcut by going to __Settings > Controls__
-
-# User interface
-
-The idea is to have a uncluttered, simple and easy to use UI. You can see UI elements only when you need them.
-
-There is a pull-down panel with thumbnails, as well as folder view. You can also bring up a context menu via right click.
-
-## Using quick copy / quick move panels
-
-Bring up the panel with C or M shortcut. You will see 9 destination directories, click on the folder icon to change them.
-
-With panel visible, use 1 - 9 keys to copy/move current image to corresponding directory.
-
-When you are done press C or M again to hide the panel.
-
-## Running scripts
-
-You can run custom scripts on a current image.
-
-Open __Settings > Scripts__. Press Add. Here you can choose between a shell command and a shell script. 
-
-Example of a command: 
-
-`convert %file% %file%_.pdf`
-
-Example of a shell script file (`$1` will be image path): 
-```
-#!/bin/bash
-gimp "$1"
-```
-_Note: The script file must be an executable. Also, "shebang" (`#!/bin/bash`) needs to be present._
-
-When you've created your script go to __Settings > Controls > Add__, then select it and assign a shortcut like for any regular action.
-
-## HiDPI (Linux / MacOS only)
-
-If qimgv appears too small / too big on your display, you can override the scale factor. Example:
-```
-QT_SCALE_FACTOR="1.5" qimgv /path/to/image.png
-```
-You can put it in `qimgv.desktop` file to make it permanent. Using values less than `1.0` is not supported.
-
-qimgv should also obey the global scale factor set in KDE's systemsettings.
-
-## High quality scaling
-
-qimgv supports nicer scaling filters when compiled with `opencv` support (ON by default, but might vary depending on your linux distribution). Filter options are available in __Settings > Scaling__. `Bicubic` or `bilinear+sharpen` is recommended.
-
-# Additional image formats
-
-qimgv can open some extra formats via third-party image plugins. All of them are included with windows package.
-
-| Format  | Plugin |
-| ------- | ------------- |
-| JPEG-XL | [github.com/novomesk/qt-jpegxl-image-plugin](https://github.com/novomesk/qt-jpegxl-image-plugin) |
-| AVIF | [github.com/novomesk/qt-avif-image-plugin](https://github.com/novomesk/qt-avif-image-plugin) |
-| APNG | [github.com/Skycoder42/QtApng](https://github.com/Skycoder42/QtApng) |
-| HEIF / HEIC | [github.com/jakar/qt-heif-image-plugin](https://github.com/jakar/qt-heif-image-plugin) |
-| RAW | [https://gitlab.com/mardy/qtraw](https://gitlab.com/mardy/qtraw) |
-
-# Installation
-
-## Windows
-  
-  Windows builds are portable (everything is contained within the install folder). The installer also sets up file associations.
-  
-  _NOTE: `-video` variants include mpv for video support_
-  
-  Grab the latest version from the [releases page](https://github.com/easymodo/qimgv/releases)
-
-  Alternatively you can install it with Chocolatey:
-  
-  ```
-  choco install qimgv
-  ```
-  
-  Or WinGet:
-  
-  ```
-  winget install --id easymodo.qimgv
-  ```
-
-## GNU+Linux
-
-### Arch Linux / Manjaro / etc.
-
-AUR package: 
-
-```
-qimgv-git
-```
-  
-### Ubuntu / Linux Mint / Pop!\_OS / etc.
-
-```
-sudo apt install qimgv
+```bash
+qimgvr /path/to/photo.jpg
+qimgv /path/to/photo.jpg          # compatibility command after local install
+qimgvr --sbs /path/to/photo.jpg   # local SBS preview when XR is disconnected
+qimgvr --no-sbs /path/to/video.mp4
 ```
 
-### Fedora
+Still photos convert in a persistent background process. Browse normally while
+the latest image is processed; the result updates a dedicated SBS overlay in the
+connected WiVRn/WayVR session. F8 or **Toggle SBS / XR output** toggles output.
+Images use qimgv's oriented/edited pixels; animations and videos use the ordinary
+viewer. See [SBS_XR.md](SBS_XR.md) for stereo controls and limitations.
 
-```
-sudo dnf install qimgv
-```
+## Build and install locally
 
-### OpenSUSE
+All upstream optional features are enabled in the local installation:
 
-```
-zypper install qimgv
-```
+- mpv video playback through the separately built `player_mpv.so` plugin.
+- OpenCV high-quality scaling.
+- Exiv2 metadata support.
+- KDE WindowSystem integration and blur.
+- Qt6 image plugins supplied by the system, including AVIF/HEIF, JPEG XL,
+  SVG, WebP, TIFF, EXR, PSD and camera RAW formats where their codecs are present.
 
-### Gentoo
+Dependencies: C++ compiler, CMake, Git, Qt6 base/Svg/tools development packages,
+Qt Test, Exiv2 development files, OpenCV core/imgproc development files, libmpv
+development files, and KF6WindowSystem development files. On Fedora/Nobara,
+these include `qt6-qtbase-devel qt6-qtsvg-devel qt6-qttools-devel exiv2-devel
+opencv-devel mpv-devel kf6-kwindowsystem-devel`. Install `qt6-qtimageformats`
+and `kf6-kimageformats` for additional runtime image plugins.
 
-```
-emerge qimgv
-```
-
-### Void linux
-
-```
-xbps-install -S qimgv
-```
-
-### Alpine Linux
-
-```
-apk add qimgv
+```bash
+python3 scripts/install-local.py
 ```
 
-## BSD
+The helper builds Release/Qt6 with `EXIV2`, `VIDEO_SUPPORT`, `OPENCV_SUPPORT`,
+`KDE_SUPPORT`, and `SBS_TESTS` enabled, runs native tests, and installs into
+`~/.local/opt/qimgvr`. It creates `qimgvr`, `qimgv`, and `qimgv-sbs` launchers in
+`~/.local/bin`, a qimgvr desktop entry, and compatibility desktop entries. It
+updates image associations and backs up existing launchers, settings and MIME
+configuration in `~/.local/state/qimgvr/backups`. Existing qimgv settings remain
+at `~/.config/qimgv`; qimgvr uses its own thumbnail/cache directory.
 
-### FreeBSD
+SBS inference requires [Arc SBS](https://github.com/jebot-git/arc-sbs) >=0.3.0,
+the separately prepared pinned Depth Anything V2 Small model, and A770
+OpenVINO/OpenCL drivers. Default worker interpreter:
+`~/.local/opt/arc-sbs/current/venv/bin/python`; override with `QIMGV_SBS_PYTHON`.
+Ordinary image/video viewing does not need the conversion model.
 
+Once the replacement is installed, remove the distribution qimgv package with:
+
+```bash
+sudo dnf remove --no-autoremove qimgv
 ```
-pkg install qimgv
-```
 
-This list may be incomplete. 
+The system package was removed on this workstation after sudo authentication.
+Runtime dependencies are retained. Local launchers and icons do not depend on
+the removed package. Check features and detected codecs with
+`qimgvr --build-options`.
 
-## Compiling from source
+The mpv plugin is loaded from qimgvr's own installation directory; it does not
+fall back to `/usr/lib64/qimgv`. Native tests cover SBS geometry, asynchronous
+navigation, file updates/cleanup, and actual mpv OpenGL playback. The playback
+test needs FFmpeg and an active X11/Xwayland display; SBS tests run offscreen.
 
-See [Compiling qimgv from source](https://github.com/easymodo/qimgv/wiki/Compiling-qimgv-from-source) on the wiki
-
-# Donate
-
-If you wish to give me a few bucks, please consider donating to the Ukrainian Army instead:
-
-[https://savelife.in.ua/en/donate-en/#donate-army-card-once](https://savelife.in.ua/en/donate-en/#donate-army-card-once)
-
-[https://u24.gov.ua/](https://u24.gov.ua/)
-
-This directly increases the chances of me being able to work on this in future
+Upstream copyright notices and GPLv3 [LICENSE](LICENSE) are retained. The
+converter is a separate process with its own model/dependency licenses.

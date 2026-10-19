@@ -6,7 +6,7 @@ Settings::Settings(QObject *parent) : QObject(parent) {
 #if defined(__linux__) || defined(__FreeBSD__)
     // config files
     QSettings::setDefaultFormat(QSettings::NativeFormat);
-    settingsConf = new QSettings();
+    settingsConf = new QSettings("qimgv", "qimgv");
     stateConf = new QSettings(QCoreApplication::organizationName(), "savedState");
     themeConf = new QSettings(QCoreApplication::organizationName(), "theme");
 #else

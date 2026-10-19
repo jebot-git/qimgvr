@@ -80,11 +80,13 @@ int main(int argc, char *argv[]) {
 #endif
 
     QCoreApplication::setOrganizationName("qimgv");
-    QCoreApplication::setOrganizationDomain("github.com/easymodo/qimgv");
-    QCoreApplication::setApplicationName("qimgv");
+    QCoreApplication::setOrganizationDomain("github.com/jebot-git/qimgvr");
+    QCoreApplication::setApplicationName("qimgvr");
+    // Settings explicitly retain qimgv's existing configuration identity.
+    QGuiApplication::setApplicationDisplayName("qimgvr");
     QCoreApplication::setApplicationVersion(appVersion.toString());
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
-    QGuiApplication::setDesktopFileName(QCoreApplication::applicationName() + ".desktop");
+    QGuiApplication::setDesktopFileName("qimgvr");
 
     // needed for mpv
 #ifndef _MSC_VER
@@ -117,7 +119,7 @@ int main(int argc, char *argv[]) {
 
 // parse args ------------------------------------------------------------------
     QCommandLineParser parser;
-    QString appDescription = qApp->applicationName() + " - Fast and configurable image viewer.";
+    QString appDescription = "qimgvr - Image viewer with automatic SBS conversion in XR.";
     appDescription.append("\nVersion: " + qApp->applicationVersion());
     appDescription.append("\nLicense: GNU GPLv3");
     parser.setApplicationDescription(appDescription);
@@ -142,6 +144,10 @@ int main(int argc, char *argv[]) {
     parser.process(a);
 
     if(parser.isSet("sbs-present") || parser.isSet("sbs-present-encoded")) {
+        // Qt Wayland appends the application display name to distinct titles.
+        // The IPC overlay must keep the exact title supplied by the worker.
+        if(parser.isSet("sbs-title"))
+            QGuiApplication::setApplicationDisplayName(parser.value("sbs-title"));
         StereoWindow window;
         if(parser.isSet("sbs-title")) window.setWindowTitle(parser.value("sbs-title"));
         const QString image = parser.isSet("sbs-present-encoded")

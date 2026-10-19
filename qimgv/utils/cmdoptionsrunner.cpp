@@ -1,4 +1,6 @@
 #include "cmdoptionsrunner.h"
+#include <QImageReader>
+#include <QTextStream>
 
 void CmdOptionsRunner::generateThumbs(QString dirPath, int size) {
     if(size <= 50 || size > 400) {
@@ -46,10 +48,11 @@ void CmdOptionsRunner::showBuildOptions() {
 #ifdef USE_OPENCV
     features << "USE_OPENCV";
 #endif
-    qDebug() << "\nEnabled build options:";
-    if(!features.count())
-        qDebug() << "   --";
-    for(int i = 0; i < features.count(); i++)
-        qDebug() << "   " << features.at(i);
+    QTextStream output(stdout);
+    output << "Enabled build options: " << features.join(' ') << '\n';
+    output << "Qt image formats:";
+    for(const auto &format : QImageReader::supportedImageFormats()) output << ' ' << format;
+    output << '\n';
+    output.flush();
     QCoreApplication::quit();
 }

@@ -6,7 +6,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     ui(new Ui::SettingsDialog)
 {
     ui->setupUi(this);
-    this->setWindowTitle(tr("Preferences — ") + qApp->applicationName());
+    this->setWindowTitle(tr("Preferences — ") + QGuiApplication::applicationDisplayName());
 
     ui->shortcutsTableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);   
     ui->aboutAppTextBrowser->viewport()->setAutoFillBackground(false);
