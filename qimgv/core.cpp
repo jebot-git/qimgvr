@@ -76,6 +76,13 @@ void Core::initComponents() {
 }
 
 void Core::connectComponents() {
+    connect(&sbs, &SbsController::message, mw, qOverload<QString>(&MW::showMessage));
+    connect(&sbs, &SbsController::failed, mw, &MW::showError);
+    connect(actionManager, &ActionManager::toggleSbs, this, [this] {
+        const bool active = sbs.mode() == "always" || (sbs.mode() == "auto" && sbs.headsetConnected());
+        sbs.setMode(active ? "off" : "always");
+        mw->showMessage(sbs.mode() == "off" ? tr("SBS disabled") : tr("SBS enabled"));
+    });
     thumbPanelPresenter.setView(mw->getThumbnailPanel());
     connect(&thumbPanelPresenter, &DirectoryPresenter::fileActivated,
             this, &Core::onDirectoryViewFileActivated);
@@ -1203,6 +1210,7 @@ void Core::onScalingFinished(QPixmap *scaled, ScalerRequest req) {
 
 // reset state; clear cache; etc
 void Core::reset() {
+    sbs.setSource(QImage());
     state.hasActiveImage = false;
     state.currentFilePath = "";
     model->setDirectory("");
@@ -1500,10 +1508,15 @@ void Core::guiSetImage(std::shared_ptr<Image> img) {
     DocumentType type = img->type();
     if(type == STATIC) {
         mw->showImage(img->getPixmap());
+        auto still = dynamic_cast<ImageStatic *>(img.get());
+        const auto pixels = still ? still->getImage() : nullptr;
+        sbs.setSource(pixels ? *pixels : QImage());
     } else if(type == ANIMATED) {
+        sbs.setSource(QImage());
         auto animated = dynamic_cast<ImageAnimated *>(img.get());
         mw->showAnimation(animated->getMovie());
     } else if(type == VIDEO) {
+        sbs.setSource(QImage());
         auto video = dynamic_cast<Video *>(img.get());
         // workaround for mpv. If we play video while mainwindow is hidden we get black screen.
         // affects only initial startup (e.g. we open webm from file manager)

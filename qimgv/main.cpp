@@ -133,8 +133,24 @@ int main(int argc, char *argv[]) {
             QCoreApplication::translate("main", "thumbnail-size")},
         {"build-options",
             QCoreApplication::translate("main", "Show build options.")},
+        {"sbs", "Convert still images to SBS; display in connected WayVR or a local stereo window."},
+        {"no-sbs", "Disable automatic SBS output to a connected headset."},
+        {"sbs-present", "Present an existing full-SBS image on a squeezed stereo surface (internal XR viewer).", "image"},
+        {"sbs-title", "Unique title for an XR stereo overlay.", "title"},
+        {"sbs-present-encoded", "Internal XR presenter: base64-encoded UTF-8 image path.", "base64"},
     });
     parser.process(a);
+
+    if(parser.isSet("sbs-present") || parser.isSet("sbs-present-encoded")) {
+        StereoWindow window;
+        if(parser.isSet("sbs-title")) window.setWindowTitle(parser.value("sbs-title"));
+        const QString image = parser.isSet("sbs-present-encoded")
+            ? QString::fromUtf8(QByteArray::fromBase64(parser.value("sbs-present-encoded").toLatin1()))
+            : parser.value("sbs-present");
+        window.watchFile(image);
+        window.showFullScreen();
+        return a.exec();
+    }
 
     if(parser.isSet("build-options")) {
         CmdOptionsRunner r;
@@ -154,6 +170,7 @@ int main(int argc, char *argv[]) {
 // -----------------------------------------------------------------------------
 
     Core core;
+    core.setSbsMode(parser.isSet("no-sbs") ? "off" : parser.isSet("sbs") ? "always" : "auto");
 
 #ifdef __APPLE__
     QObject::connect(&a, &MacOSApplication::fileOpened, &core, &Core::loadPath);

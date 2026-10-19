@@ -83,6 +83,8 @@ ContextMenu::ContextMenu(QWidget *parent) :
 
     ui->settings->setAction("openSettings");
     ui->settings->setText(tr("Settings"));
+    ui->stereo->setAction("toggleSbs");
+    ui->stereo->setText(tr("Toggle SBS / XR output"));
     ui->settings->setIconPath(":/res/icons/common/menuitem/settings16.png");
     // -------------------------------------------------------------------------
     ui->openWith->setText(tr("Open with..."));

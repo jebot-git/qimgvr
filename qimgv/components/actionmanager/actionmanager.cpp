@@ -19,6 +19,7 @@ ActionManager *ActionManager::getInstance() {
 }
 //------------------------------------------------------------------------------
 void ActionManager::initDefaults() {
+    actionManager->defaults.insert("F8", "toggleSbs");
     actionManager->defaults.insert("Right", "nextImage");
     actionManager->defaults.insert("Left", "prevImage");
     actionManager->defaults.insert("XButton2", "nextImage");
@@ -105,6 +106,10 @@ void ActionManager::initShortcuts() {
     if(actionManager->shortcuts.isEmpty()) {
         actionManager->resetDefaults();
     }
+    // Add the new binding without replacing customized existing shortcuts.
+    if(!actionManager->shortcuts.contains("F8") &&
+            !actionManager->shortcuts.values().contains("toggleSbs"))
+        actionManager->shortcuts.insert("F8", "toggleSbs");
 }
 //------------------------------------------------------------------------------
 void ActionManager::addShortcut(const QString &keys, const QString &action) {

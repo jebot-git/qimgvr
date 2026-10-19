@@ -16,6 +16,7 @@
 #include "gui/mainwindow.h"
 #include "utils/randomizer.h"
 #include "gui/dialogs/printdialog.h"
+#include "components/sbscontroller.h"
 
 #ifdef __GLIBC__
 #include <malloc.h>
@@ -39,6 +40,7 @@ class Core : public QObject {
 public:
     Core();
     void showGui();
+    void setSbsMode(const QString &mode) { sbs.setMode(mode); }
 
 public slots:
     void updateInfoString();
@@ -59,6 +61,7 @@ private:
     MW *mw;
 
     State state;
+    SbsController sbs;
     bool loopSlideshow, slideshow, shuffle;
     FolderEndAction folderEndAction;
 

@@ -77,6 +77,19 @@ endif()
 
 add_subdirectory(qimgv)
 
+option(SBS_TESTS "Build stereo canvas and asynchronous conversion tests" OFF)
+if(SBS_TESTS)
+    enable_testing()
+    find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Test)
+    add_executable(test_sbs qimgv/tests/test_sbs.cpp
+        qimgv/components/sbscontroller.cpp qimgv/gui/viewers/stereowindow.cpp)
+    target_include_directories(test_sbs PRIVATE qimgv)
+    target_compile_features(test_sbs PRIVATE cxx_std_17)
+    target_link_libraries(test_sbs PRIVATE Qt${QT_VERSION_MAJOR}::Test Qt${QT_VERSION_MAJOR}::Widgets)
+    add_test(NAME sbs COMMAND test_sbs)
+    set_tests_properties(sbs PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
 if(VIDEO_SUPPORT)
     add_subdirectory(plugins/player_mpv)
 endif()

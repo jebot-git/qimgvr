@@ -1,6 +1,7 @@
 ## SOURCES FOR QIMGV GUI
 
 target_sources(qimgv PRIVATE
+    viewers/stereowindow.cpp
     centralwidget.cpp
     contextmenu.cpp
     flowlayout.cpp

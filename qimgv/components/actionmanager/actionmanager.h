@@ -54,6 +54,7 @@ private:
     ActionType validateAction(const QString &actionName);
 
 signals:
+    void toggleSbs();
     void open();
     void save();
     void saveAs();
