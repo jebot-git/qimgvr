@@ -1,5 +1,16 @@
 # qimgvr
 
+qimgvr exports native **File**, **Edit**, **View**, **Go**, and **Window** menus
+to DomeD's universal menu bar through Qt's DBusMenu/AppMenu integration on
+Wayland. Commands use the existing action manager and customized shortcuts;
+image/edit availability, slideshow, shuffle, and fullscreen state update live.
+The View menu includes SBS/XR output and input-layout commands. DomeD adds its
+desktop/XR window controls. The custom context menu remains available when no
+global menu host is present; no platform-theme override is required.
+
+Build the menu tests with `-DMENU_TESTS=ON`, then run
+`ctest --test-dir build -R applicationmenu --output-on-failure`.
+
 Qt6 image viewer with Intel Arc accelerated 2D-to-SBS conversion and automatic
 output in an active WiVRn/WayVR or DomeD XR session. Independent GPLv3 fork of
 [easymodo/qimgv](https://github.com/easymodo/qimgv), preserving its history and

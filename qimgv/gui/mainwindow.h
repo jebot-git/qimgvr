@@ -37,6 +37,7 @@
 #include "gui/viewers/documentwidget.h"
 #include "gui/folderview/folderviewproxy.h"
 #include "gui/panels/infobar/infobarproxy.h"
+#include "gui/applicationmenu.h"
 
 #ifdef USE_KDE_BLUR
 #include <KWindowEffects>
@@ -111,7 +112,8 @@ private:
     FloatingMessageProxy *floatingMessage;
 
     PanelPosition panelPosition;
-    CurrentInfo info;
+    CurrentInfo info{};
+    ApplicationMenu *applicationMenu = nullptr;
 #if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
     QDesktopWidget desktopWidget;
 #endif

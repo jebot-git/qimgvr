@@ -58,6 +58,10 @@ MW::MW(QWidget *parent)
  *  ViewerWidget exists for input handling reasons (correct overlay hover handling)
  */
 void MW::setupUi() {
+    applicationMenu = new ApplicationMenu(this);
+    layout.setMenuBar(applicationMenu);
+    connect(applicationMenu, &ApplicationMenu::actionRequested,
+            actionManager, &ActionManager::invokeAction);
     viewerWidget.reset(new ViewerWidget(this));
     infoBarWindowed.reset(new InfoBarProxy(this));
     docWidget.reset(new DocumentWidget(viewerWidget, infoBarWindowed));
@@ -218,6 +222,7 @@ void MW::closeImage() {
     info.fileName = "";
     info.filePath = "";
     viewerWidget->closeImage();
+    onInfoUpdated();
 }
 
 // todo: fix flicker somehow
@@ -796,6 +801,10 @@ void MW::setCurrentInfo(int _index, int _fileCount, QString _filePath, QString _
 
 // todo: nuke and rewrite
 void MW::onInfoUpdated() {
+    const bool hasFile = !info.filePath.isEmpty();
+    applicationMenu->updateState(hasFile, hasFile && !info.imageSize.isEmpty(),
+                                 info.edited, info.fileCount > 0,
+                                 info.slideshow, info.shuffle, isFullScreen());
     QString posString;
     if(info.fileCount)
         posString = "[ " + QString::number(info.index + 1) + "/" + QString::number(info.fileCount) + " ]";
@@ -927,6 +936,7 @@ bool MW::showConfirmation(QString title, QString msg) {
 }
 
 void MW::readSettings() {
+    applicationMenu->updateShortcuts(actionManager->allShortcuts());
     showInfoBarFullscreen = settings->infoBarFullscreen();
     showInfoBarWindowed = settings->infoBarWindowed();
     adaptToWindowState();
@@ -984,6 +994,7 @@ void MW::adaptToWindowState() {
     folderView->onFullscreenModeChanged(isFullScreen());
     docWidget->onFullscreenModeChanged(isFullScreen());
     viewerWidget->onFullscreenModeChanged(isFullScreen());
+    onInfoUpdated();
 }
 
 void MW::paintEvent(QPaintEvent *event) {
