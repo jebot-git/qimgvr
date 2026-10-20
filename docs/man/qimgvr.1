@@ -1,0 +1,42 @@
+.TH QIMGVR 1 "2026-10-20" "de-xr" "User Commands"
+.SH NAME
+qimgvr \- view images and send stereoscopic output to XR
+.SH SYNOPSIS
+.nf
+qimgvr [OPTIONS] [PATH]
+.fi
+.SH DESCRIPTION
+Qt6 image viewer with optional mpv video playback and Arc SBS depth conversion. Ordinary image and video viewing does not require the inference runtime. Automatic 2D\-to\-SBS conversion of still images runs in a separate worker.
+.SH OPTIONS
+.TP
+.B "\-\-sbs"
+Enable SBS output, including local preview without XR.
+.TP
+.B "\-\-no\-sbs"
+Disable SBS output.
+.TP
+.B "\-\-domed"
+Select DomeD output.
+.TP
+.B "\-\-input\-layout auto|2d|full\-sbs|half\-sbs"
+Override input stereo layout detection.
+.TP
+.B "\-\-build\-options"
+Print compiled features and detected image formats.
+.TP
+.B "\-\-gen\-thumbs DIRECTORY"
+Generate thumbnails for a directory.
+.TP
+.B "\-\-gen\-thumbs\-size SIZE"
+Select thumbnail size for generation.
+.TP
+.B "\-\-help"
+Show usage.
+.SH KEYS
+F8 toggles SBS/XR output. F9 changes the input stereo layout override.
+.SH ENVIRONMENT
+QIMGV_SBS_PYTHON selects the Python interpreter containing arc_sbs and its dependencies. An isolated system deployment may use /usr/local/libexec/arc\-sbs/venv/bin/python. The worker also requires the separately prepared model and GPU drivers.
+.SH FILES
+Existing viewer settings remain under ~/.config/qimgv. qimgvr uses its own thumbnail cache.
+.SH SEE ALSO
+arc\-sbs(1), mpvr(1), dome\-compositor(1)

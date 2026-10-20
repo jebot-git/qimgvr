@@ -103,3 +103,7 @@ if(VIDEO_SUPPORT)
         set_tests_properties(mpv_playback PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=xcb")
     endif()
 endif()
+
+include(GNUInstallDirs)
+
+install(FILES docs/man/qimgvr.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)

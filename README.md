@@ -1,7 +1,7 @@
 # qimgvr
 
 Qt6 image viewer with Intel Arc accelerated 2D-to-SBS conversion and automatic
-output in an active WiVRn/WayVR XR session. Independent GPLv3 fork of
+output in an active WiVRn/WayVR or DomeD XR session. Independent GPLv3 fork of
 [easymodo/qimgv](https://github.com/easymodo/qimgv), preserving its history and
 the upstream `3127a2d211b124ad4fcf853d01e6df9323bdfdc3` base. Original qimgv
 features, authors and screenshots are documented in [README_UPSTREAM.md](README_UPSTREAM.md).
@@ -59,16 +59,9 @@ OpenVINO/OpenCL drivers. Default worker interpreter:
 `~/.local/opt/arc-sbs/current/venv/bin/python`; override with `QIMGV_SBS_PYTHON`.
 Ordinary image/video viewing does not need the conversion model.
 
-Once the replacement is installed, remove the distribution qimgv package with:
-
-```bash
-sudo dnf remove --no-autoremove qimgv
-```
-
-The system package was removed on this workstation after sudo authentication.
-Runtime dependencies are retained. Local launchers and icons do not depend on
-the removed package. Check features and detected codecs with
-`qimgvr --build-options`.
+The fork can coexist with the distribution qimgv package. Review desktop/MIME
+associations before choosing a default viewer. Check compiled features and detected
+codecs with `qimgvr --build-options`.
 
 The mpv plugin is loaded from qimgvr's own installation directory; it does not
 fall back to `/usr/lib64/qimgv`. Native tests cover SBS geometry, asynchronous
@@ -77,3 +70,38 @@ test needs FFmpeg and an active X11/Xwayland display; SBS tests run offscreen.
 
 Upstream copyright notices and GPLv3 [LICENSE](LICENSE) are retained. The
 converter is a separate process with its own model/dependency licenses.
+
+## System installation
+
+Configure the prefix before building: plugin and translation paths are compiled in.
+With the development dependencies above installed:
+
+```sh
+cmake -S . -B build-system -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_INSTALL_LIBDIR=lib \
+  -DUSE_QT5=OFF -DEXIV2=ON -DVIDEO_SUPPORT=ON \
+  -DOPENCV_SUPPORT=ON -DKDE_SUPPORT=ON
+cmake --build build-system
+sudo cmake --install build-system
+sudo update-desktop-database /usr/local/share/applications
+```
+
+For a shared, isolated Arc SBS runtime, set `QIMGV_SBS_PYTHON` to its interpreter,
+for example `/usr/local/libexec/arc-sbs/venv/bin/python`. Ensure that runtime and
+its prepared model are readable by the users who will run conversion. The
+per-user helper above remains a separate installation choice.
+
+## Command manuals and related projects
+
+Basic manuals: [qimgvr.1](docs/man/qimgvr.1). After installation, use `man qimgvr`.
+
+Part of the [de-xr desktop](https://github.com/topics/de-xr):
+[DomeD](https://github.com/jebot-git/DomeD) provides the desktop/session,
+[Ghostty XR](https://github.com/jebot-git/ghostty-xr) the terminal,
+[mpvr](https://github.com/jebot-git/mpvr) video playback,
+[fsvr](https://github.com/jebot-git/fsv-xr) file browsing,
+[qimgvr](https://github.com/jebot-git/qimgvr) image viewing,
+[Arc SBS](https://github.com/jebot-git/arc-sbs) depth conversion, and
+[LightXR](https://github.com/jebot-git/LightXR) the optional login manager.
+Each application has its own dependencies and can be used independently where
+its selected backend permits.
