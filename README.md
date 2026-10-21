@@ -67,6 +67,7 @@ at `~/.config/qimgv`; qimgvr uses its own thumbnail/cache directory.
 SBS inference requires [Arc SBS](https://github.com/jebot-git/arc-sbs) >=0.4.1,
 the separately prepared pinned Depth Anything V2 Small model, and A770
 OpenVINO/OpenCL drivers. Default worker interpreter:
+`/opt/arc-sbs/venv/bin/python` for a system installation, then the legacy
 `~/.local/opt/arc-sbs/current/venv/bin/python`; override with `QIMGV_SBS_PYTHON`.
 Ordinary image/video viewing does not need the conversion model.
 
@@ -117,3 +118,12 @@ Part of the [de-xr desktop](https://github.com/topics/de-xr):
 [LightXR](https://github.com/jebot-git/LightXR) the optional login manager.
 Each application has its own dependencies and can be used independently where
 its selected backend permits.
+
+### DomeD appearance and bitmap text
+
+Inside DomeD, qimgvr watches the session appearance file and applies its palette
+and exact bitmap font family, style and native pixel size. Thumbnail labels,
+folder navigation, menus and zoom labels refresh their fonts and cached metrics
+on live changes. Session overrides do not overwrite the saved qimgvr theme.
+Unavailable bitmap faces or strikes fall back to the Qt application font.
+Other compositors continue using qimgvr's normal Qt/theme settings.

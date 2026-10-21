@@ -1,4 +1,5 @@
 #include "themestore.h"
+#include "domeappearance.h"
 
 ColorScheme ThemeStore::colorScheme(ColorSchemes name) {
     BaseColorScheme base = {-1};
@@ -12,7 +13,7 @@ ColorScheme ThemeStore::colorScheme(ColorSchemes name) {
             base.folderview = p.base().color();
             base.text = p.text().color();
             base.icons = p.text().color();
-            base.accent = p.highlight().color();
+            base.accent = DomeAppearance::inSession() ? p.link().color() : p.highlight().color();
             base.scrollbar.setHsv(p.highlight().color().hue(),
                                   qBound(0, p.highlight().color().saturation() - 20, 240),
                                   qBound(0, p.highlight().color().value() - 35, 240));

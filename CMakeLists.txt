@@ -119,3 +119,11 @@ endif()
 include(GNUInstallDirs)
 
 install(FILES docs/man/qimgvr.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+
+if(SBS_TESTS OR MENU_TESTS)
+    add_executable(test_domeappearance tests/domeappearance-test.cpp)
+    target_include_directories(test_domeappearance PRIVATE qimgv)
+    target_compile_definitions(test_domeappearance PRIVATE DOME_FONT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/fonts/cozette.otb")
+    target_link_libraries(test_domeappearance PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME bitmap-font-appearance COMMAND test_domeappearance -platform offscreen)
+endif()

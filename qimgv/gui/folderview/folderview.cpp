@@ -1,4 +1,5 @@
 #include "folderview.h"
+#include "domeappearance.h"
 #include "ui_folderview.h"
 
 FolderView::FolderView(QWidget *parent) :
@@ -10,7 +11,7 @@ FolderView::FolderView(QWidget *parent) :
     // ------- filesystem view --------
     QString style = "font: %1pt;";
     style = style.arg(QApplication::font().pointSize());
-    ui->dirTreeView->setStyleSheet(style);
+    if (!DomeAppearance::inSession()) ui->dirTreeView->setStyleSheet(style);
 
     optionsPopup = new FVOptionsPopup();
     popupTimerClutch.start();

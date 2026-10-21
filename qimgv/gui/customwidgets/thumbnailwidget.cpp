@@ -1,3 +1,4 @@
+#include "domeappearance.h"
 #include "thumbnailwidget.h"
 
 ThumbnailWidget::ThumbnailWidget(QGraphicsItem *parent) :
@@ -21,6 +22,16 @@ ThumbnailWidget::ThumbnailWidget(QGraphicsItem *parent) :
         setCacheMode(QGraphicsItem::DeviceCoordinateCache);
     setAcceptHoverEvents(true);
     font.setBold(false);
+    if (DomeAppearance::inSession()) {
+        font = QApplication::font();
+
+        connect(qApp, &QGuiApplication::fontChanged, this, [this](const QFont &next) {
+            font = next;
+
+            textHeight = QFontMetrics(font).height();
+            setupTextLayout(); updateBoundingRect(); updateGeometry(); update();
+        });
+    }
     QFontMetrics fm(font);
     textHeight = fm.height();
 }

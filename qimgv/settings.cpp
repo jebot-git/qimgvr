@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "domeappearance.h"
 
 Settings *settings = nullptr;
 
@@ -143,8 +144,8 @@ void Settings::loadStylesheet() {
         //qDebug()<< "dpr=" << qApp->devicePixelRatio() << "pDpr=" << pDpr;
 
         // --- write variables into stylesheet --------------------------
-        styleSheet.replace("%font_small%", QString::number(font_small)+"pt");
-        styleSheet.replace("%font_large%", QString::number(font_large)+"pt");
+        styleSheet.replace("%font_small%", DomeAppearance::inSession() ? QString::number(QFontInfo(fnt).pixelSize())+"px" : QString::number(font_small)+"pt");
+        styleSheet.replace("%font_large%", DomeAppearance::inSession() ? QString::number(QFontInfo(fnt).pixelSize())+"px" : QString::number(font_large)+"pt");
         styleSheet.replace("%button_height%", QString::number(button_height)+"px");
         styleSheet.replace("%top_panel_height%", QString::number(top_panel_height)+"px");
         styleSheet.replace("%overlay_header_size%", QString::number(overlay_header_size)+"px");
@@ -218,8 +219,12 @@ void Settings::loadStylesheet() {
     }
 }
 //------------------------------------------------------------------------------
+void Settings::refreshDomeAppearance() {
+    if (DomeAppearance::inSession()) loadTheme();
+}
+//------------------------------------------------------------------------------
 void Settings::loadTheme() {
-    if(settings->useSystemColorScheme()) {
+    if(DomeAppearance::inSession() || settings->useSystemColorScheme()) {
         setColorScheme(ThemeStore::colorScheme(ColorSchemes::COLORS_SYSTEM));
     } else {
         BaseColorScheme base;
@@ -242,6 +247,7 @@ void Settings::loadTheme() {
     }
 }
 void Settings::saveTheme() {
+    if (DomeAppearance::inSession()) return; // Session overrides never overwrite the user theme.
     if(settings->useSystemColorScheme())
         return;
     themeConf->beginGroup("Colors");

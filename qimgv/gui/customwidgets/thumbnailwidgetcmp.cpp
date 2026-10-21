@@ -1,3 +1,4 @@
+#include "domeappearance.h"
 #include "ThumbnailWidgetCmp.h"
 
 ThumbnailWidgetCmp::ThumbnailWidgetCmp(QGraphicsItem *parent) :
@@ -20,6 +21,16 @@ ThumbnailWidgetCmp::ThumbnailWidgetCmp(QGraphicsItem *parent) :
     setAcceptHoverEvents(true);
     fontName.setBold(false);
     fontInfo.setBold(false);
+    if (DomeAppearance::inSession()) {
+        fontName = QApplication::font();
+        fontInfo = fontName;
+        connect(qApp, &QGuiApplication::fontChanged, this, [this](const QFont &next) {
+            fontName = next;
+            fontInfo = fontName;
+            textHeight = QFontMetrics(fontName).height();
+            setupTextLayout(); updateBoundingRect(); updateGeometry(); update();
+        });
+    }
     QFontMetrics fm(fontName);
     textHeight = fm.height();
     shadowColor.setRgb(0,0,0,60);
@@ -64,7 +75,9 @@ void ThumbnailWidgetCmp::reset() {
 
 void ThumbnailWidgetCmp::setThumbStyle(ThumbnailStyle _style) {
     if(thumbStyle != _style) {
-        if(_style == THUMB_COMPACT) {
+        if (DomeAppearance::inSession()) {
+            fontName = QApplication::font(); fontInfo = fontName;
+        } else if(_style == THUMB_COMPACT) {
             fontName.setBold(true);
             fontInfo.setBold(true);
             if(fontName.pointSizeF() > 14.0) // for some weird setups

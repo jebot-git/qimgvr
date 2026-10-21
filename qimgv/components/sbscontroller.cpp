@@ -60,6 +60,7 @@ void SbsController::ensureWorker() {
     if(!temporary.isValid()) { emit failed(tr("Cannot create SBS working directory")); return; }
     if(worker.state() == QProcess::NotRunning) {
         QString python = qEnvironmentVariable("QIMGV_SBS_PYTHON");
+        if(python.isEmpty() && QFile::exists("/opt/arc-sbs/venv/bin/python")) python = "/opt/arc-sbs/venv/bin/python";
         if(python.isEmpty()) python = QDir::homePath() + "/.local/opt/arc-sbs/current/venv/bin/python";
         if(!QFile::exists(python)) python = QStandardPaths::findExecutable("python3");
         buffer.clear();

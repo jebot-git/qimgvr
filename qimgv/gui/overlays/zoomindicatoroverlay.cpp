@@ -7,8 +7,14 @@ ZoomIndicatorOverlay::ZoomIndicatorOverlay(FloatingWidgetContainer *parent) : Ov
 
     layout.setContentsMargins(0,0,0,0);
     layout.addWidget(&label);
-    fm = new QFontMetrics(QApplication::font());
+
     label.setAlignment(Qt::AlignCenter);
+    connect(qApp, &QGuiApplication::fontChanged, this, [this](const QFont &font) {
+        label.setFont(font);
+        const QFontMetrics fm(label.font());
+        label.setFixedSize(fm.horizontalAdvance(label.text()) + 14, fm.height() + 12);
+        recalculateGeometry();
+    });
 
     this->setLayout(&layout);
     this->setPosition(FloatingWidgetPosition::BOTTOMLEFT);
@@ -26,7 +32,8 @@ ZoomIndicatorOverlay::ZoomIndicatorOverlay(FloatingWidgetContainer *parent) : Ov
 
 void ZoomIndicatorOverlay::setScale(qreal scale) {
     label.setText(QString::number(qRound(scale * 100.0))+"%");
-    label.setFixedSize(fm->horizontalAdvance(label.text()) + 14, fm->height() + 12);
+    const QFontMetrics fm(label.font());
+    label.setFixedSize(fm.horizontalAdvance(label.text()) + 14, fm.height() + 12);
     recalculateGeometry();
 }
 

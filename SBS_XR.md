@@ -6,6 +6,7 @@ The separate Arc SBS image worker uses the official pinned Depth Anything V2
 Small model with Intel A770 OpenVINO/OpenCL acceleration.
 
 Install Arc SBS 0.4.1 first. The default worker Python is
+`/opt/arc-sbs/venv/bin/python` for a system installation, then the legacy
 `~/.local/opt/arc-sbs/current/venv/bin/python`; override with
 `QIMGV_SBS_PYTHON=/absolute/path/to/python`. Models and OpenVINO caches follow
 the Arc SBS user-data paths. No proprietary VisionDepth3D code is used.

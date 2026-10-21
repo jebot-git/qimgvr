@@ -6,6 +6,7 @@
 
 #include "appversion.h"
 #include "settings.h"
+#include "domeappearance.h"
 #include "components/actionmanager/actionmanager.h"
 #include "utils/inputmap.h"
 #include "utils/actions.h"
@@ -80,6 +81,8 @@ int main(int argc, char *argv[]) {
     a.setStyle(new ProxyStyle);
 #endif
 
+    DomeAppearance domeAppearance(DomeAppearance::inSession(), &a);
+
     QCoreApplication::setOrganizationName("qimgv");
     QCoreApplication::setOrganizationDomain("github.com/jebot-git/qimgvr");
     QCoreApplication::setApplicationName("qimgvr");
@@ -112,6 +115,8 @@ int main(int argc, char *argv[]) {
     inputMap = InputMap::getInstance();
     appActions = Actions::getInstance();
     settings = Settings::getInstance();
+    domeAppearance.changed = [&] { settings->refreshDomeAppearance(); };
+    if (domeAppearance.enabled()) settings->refreshDomeAppearance();
     scriptManager = ScriptManager::getInstance();
     actionManager = ActionManager::getInstance();
     shrRes = SharedResources::getInstance();

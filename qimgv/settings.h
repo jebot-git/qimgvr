@@ -100,6 +100,7 @@ class Settings : public QObject
 {
     Q_OBJECT
 public:
+    void refreshDomeAppearance();
     static Settings* getInstance();
     ~Settings();
     QStringList supportedMimeTypes();
@@ -165,7 +166,7 @@ public:
     bool blurBackground();
     void setBlurBackground(bool mode);
     void setSortingMode(SortingMode mode);
-    SortingMode sortingMode();    
+    SortingMode sortingMode();
     void readScripts(QMap<QString, Script> &scripts);
     void saveScripts(const QMap<QString, Script> &scripts);
     int folderViewIconSize();
