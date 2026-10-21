@@ -5,6 +5,16 @@ project(qimgvr
     HOMEPAGE_URL "https://github.com/jebot-git/qimgvr"
     LANGUAGES CXX)
 
+set(DE_XR_TOOLKIT "FLTK" CACHE STRING "Default UI toolkit: FLTK or Qt6")
+set_property(CACHE DE_XR_TOOLKIT PROPERTY STRINGS FLTK Qt6)
+if(DE_XR_TOOLKIT STREQUAL "FLTK")
+  include(CTest)
+  add_subdirectory(fltk)
+  return()
+elseif(NOT DE_XR_TOOLKIT STREQUAL "Qt6")
+  message(FATAL_ERROR "Unknown DE_XR_TOOLKIT")
+endif()
+
 message(STATUS "Build configuration: " ${CMAKE_BUILD_TYPE})
 
 # check for gcc

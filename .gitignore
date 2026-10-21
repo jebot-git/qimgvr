@@ -21,3 +21,7 @@ ui_settingsdialog.h
 Makefile
 __pycache__/
 *.py[cod]
+
+# Isolated FLTK experiment build outputs
+/build-fltk/
+/fltk-*.log
