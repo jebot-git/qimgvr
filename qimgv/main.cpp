@@ -76,6 +76,7 @@ int main(int argc, char *argv[]) {
     if(QStyleFactory::keys().contains("Fusion"))
         a.setStyle(QStyleFactory::create("Fusion"));
 #else
+    DomeAppearance::bootstrapFonts();
     QApplication a(argc, argv);
     // use some style workarounds
     a.setStyle(new ProxyStyle);

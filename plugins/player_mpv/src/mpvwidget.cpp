@@ -1,4 +1,5 @@
 #include "mpvwidget.h"
+#include "bdf_mpv_font.hpp"
 #include <stdexcept>
 
 static void wakeup(void *ctx) {
@@ -20,12 +21,14 @@ MpvWidget::MpvWidget(QWidget *parent, Qt::WindowFlags f)
     if(!mpv)
         throw std::runtime_error("could not create mpv context");
 
+    connect(qApp,&QGuiApplication::fontChanged,this,[this](const QFont &){bdf_mpv_font(mpv,false);});
     this->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 
     //mpv_set_option_string(mpv, "terminal", "yes");
     //mpv_set_option_string(mpv, "msg-level", "all=v");
     mpv_set_option_string(mpv, "vo", "libmpv");
 
+    bdf_mpv_font(mpv,true);
     if (mpv_initialize(mpv) < 0)
         throw std::runtime_error("could not initialize mpv context");
 
