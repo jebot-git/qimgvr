@@ -1,6 +1,83 @@
-> This experimental branch defaults to FLTK 1.4.5. See [FLTK_EXPERIMENT.md](FLTK_EXPERIMENT.md) for build instructions and missing features.
-
 # qimgvr
+
+Image/video viewer for de-xr, forked from [qimgv](https://github.com/easymodo/qimgv).
+**CMake defaults to FLTK 1.4.5 and OpenGL.** The retained Qt frontend is selected
+explicitly with `-DDE_XR_TOOLKIT=Qt6`. Upstream history and GPLv3 notices remain;
+see [README_UPSTREAM.md](README_UPSTREAM.md). The two frontends have different
+shortcuts, settings, command-line flags and remaining limitations.
+
+## Default FLTK build
+
+Requires C++17, CMake, the de-xr patched **FLTK 1.4.5** shared libraries,
+OpenGL/EGL, OpenCV core/imgcodecs/imgproc, Exiv2, libmpv, Fontconfig, GIO,
+Wayland/X11 development libraries and `wayland-scanner`. Native bitmap-font,
+Wayland app-ID and popup/dialog patches are required; see
+[FLTK notes](FLTK_EXPERIMENT.md). Use the matching runtime when launching.
+
+```sh
+FLTK_PREFIX=/path/to/patched-fltk-1.4.5
+cmake -S . -B build-fltk -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="$FLTK_PREFIX" -DDE_XR_TOOLKIT=FLTK
+cmake --build build-fltk --parallel
+ctest --test-dir build-fltk --output-on-failure
+LD_LIBRARY_PATH="$FLTK_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  ./build-fltk/fltk/qimgvr --sbs=off /path/to/photo.jpg
+DESTDIR="$PWD/stage" cmake --install build-fltk --prefix /usr/local
+install -Dm644 docs/man/qimgvr.1 stage/usr/local/share/man/man1/qimgvr.1
+```
+
+Build/stage as your regular user and review artifacts before privileged system
+installation. The FLTK target installs its executable; the Qt compatibility
+launchers, desktop/MIME setup, plugins and manual installation are separate.
+The source Qt `install-local.py` helper does not currently select Qt in CMake,
+so use the explicit Qt configuration below rather than treating it as the FLTK
+installer. Staging the manual explicitly works for the FLTK target.
+
+## FLTK use and controls
+
+```sh
+qimgvr /path/to/photo.jpg                  # SBS auto by default
+qimgvr --sbs=always /path/to/photo.jpg      # XR output or local SBS preview
+qimgvr --no-sbs /path/to/video.mp4
+qimgvr --input-layout=half-sbs stereo.jpg
+qimgvr --build-options
+```
+
+`--sbs` alone is equivalent to `--sbs=always`; accepted modes are `auto`,
+`always` and `off`. Input layout accepts `auto`, `2d`, `full-sbs` and `half-sbs`.
+`--version` and `--build-options` are safe non-window introspection commands.
+The FLTK frontend has no `--help` or thumbnail-generation CLI. Its
+`--smoke-test OUTPUT.png` captures a diagnostic image. Internal presenter flags
+are worker transport details, not normal DomeD launch options.
+
+Native decoding provides alpha/orientation/metadata, edit/undo/save, thumbnails,
+slideshow and embedded libmpv playback. Use Ctrl+O to open, Ctrl+Shift+S to save
+as, Ctrl+Z to undo, arrows for previous/next, F to fit, 1 for actual pixels,
+T for thumbnails and F11 for fullscreen. E/Q rotate, H/V flip and C crops a
+selection. Space pauses video, Alt+Left/Right seek, M mutes and +/- changes
+volume. **Stereo → Always (XR or preview)** uses S; F8/F9 belong to the Qt
+frontend, not this FLTK build.
+
+The Arc SBS worker performs still-image inference in a separate persistent
+process; already-packed SBS bypasses depth inference. `QIMGV_SBS_PYTHON` selects
+its interpreter (default `/opt/arc-sbs/venv/bin/python` if present, otherwise
+`python3`). It needs `arc_sbs`, the separately prepared model and appropriate GPU
+drivers. `QIMGVR_SBS_DEVICE` and `QIMGVR_SBS_RENDERER` override worker settings.
+Normal viewing does not require the depth model. Inside DomeD, stereo surfaces
+use its verified XR Wayland socket without creating a second XR session.
+
+FLTK exports native command menus where supported, uses native FLTK file
+choosers and follows DomeD's palette/bitmap font live. Its settings are in
+`$XDG_CONFIG_HOME/qimgvr/fltk.json`; they do not replace the Qt `qimgv` settings.
+Full RAW/animation/ICC/printing/high-quality resampling parity is incomplete.
+Hardware depth acceleration and physical headset/WiVRn streaming still need
+validation on the target setup; simulated HMD tests do not establish that support.
+
+## Opt-in Qt frontend
+
+**The following describes the retained Qt frontend only.** Configure a separate
+build with `-DDE_XR_TOOLKIT=Qt6`. [SBS_XR.md](SBS_XR.md) documents its stereo
+controls; those Qt-specific shortcuts/options do not all apply to FLTK.
 
 qimgvr exports native **File**, **Edit**, **View**, **Go**, and **Window** menus
 to DomeD's universal menu bar through Qt's DBusMenu/AppMenu integration on
@@ -36,9 +113,9 @@ Optional DomeD output, existing SBS detection and F9 input overrides are describ
 in [SBS_XR.md](SBS_XR.md). Enable the Dome-only default opener with
 `python3 scripts/install-domed.py`.
 
-## Build and install locally
+## Qt build and local installation
 
-All upstream optional features are enabled in the local installation:
+The retained Qt backend has these optional features (enable them explicitly):
 
 - mpv video playback through the separately built `player_mpv.so` plugin.
 - OpenCV high-quality scaling.
@@ -54,12 +131,17 @@ these include `qt6-qtbase-devel qt6-qtsvg-devel qt6-qttools-devel exiv2-devel
 opencv-devel mpv-devel kf6-kwindowsystem-devel`. Install `qt6-qtimageformats`
 and `kf6-kimageformats` for additional runtime image plugins.
 
-```bash
+```sh
+cmake -S . -B build -DDE_XR_TOOLKIT=Qt6 -DUSE_QT5=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_LIBDIR=lib \
+  -DCMAKE_INSTALL_PREFIX="$HOME/.local/opt/qimgvr"
 python3 scripts/install-local.py
 ```
 
-The helper builds Release/Qt6 with `EXIV2`, `VIDEO_SUPPORT`, `OPENCV_SUPPORT`,
-`KDE_SUPPORT`, and `SBS_TESTS` enabled, runs native tests, and installs into
+The legacy helper does not select the new CMake toolkit itself, so the explicit
+Qt cache configuration above is required before using it on this branch.
+The helper then enables `EXIV2`, `VIDEO_SUPPORT`, `OPENCV_SUPPORT`,
+`KDE_SUPPORT` and `SBS_TESTS`, runs native tests and installs into
 `~/.local/opt/qimgvr`. It creates `qimgvr`, `qimgv`, and `qimgv-sbs` launchers in
 `~/.local/bin`, a qimgvr desktop entry, and compatibility desktop entries. It
 updates image associations and backs up existing launchers, settings and MIME
@@ -85,13 +167,13 @@ test needs FFmpeg and an active X11/Xwayland display; SBS tests run offscreen.
 Upstream copyright notices and GPLv3 [LICENSE](LICENSE) are retained. The
 converter is a separate process with its own model/dependency licenses.
 
-## System installation
+## Qt system installation
 
 Configure the prefix before building: plugin and translation paths are compiled in.
 With the development dependencies above installed:
 
 ```sh
-cmake -S . -B build-system -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B build-system -DDE_XR_TOOLKIT=Qt6 -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_INSTALL_LIBDIR=lib \
   -DUSE_QT5=OFF -DEXIV2=ON -DVIDEO_SUPPORT=ON \
   -DOPENCV_SUPPORT=ON -DKDE_SUPPORT=ON
@@ -107,7 +189,7 @@ per-user helper above remains a separate installation choice.
 
 ## Command manuals and related projects
 
-Basic manuals: [qimgvr.1](docs/man/qimgvr.1). After installation, use `man qimgvr`.
+Manual: [qimgvr.1](docs/man/qimgvr.1). Once the manual is installed, use `man qimgvr`.
 
 Part of the [de-xr desktop](https://github.com/topics/de-xr):
 [DomeD](https://github.com/jebot-git/DomeD) provides the desktop/session,
@@ -121,7 +203,7 @@ Part of the [de-xr desktop](https://github.com/topics/de-xr):
 Each application has its own dependencies and can be used independently where
 its selected backend permits.
 
-### DomeD appearance and bitmap text
+### Qt DomeD appearance and bitmap text
 
 Inside DomeD, qimgvr watches the session appearance file and applies its palette
 and exact bitmap font family, style and native pixel size. Thumbnail labels,

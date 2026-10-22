@@ -1,42 +1,95 @@
-.TH QIMGVR 1 "2026-10-20" "de-xr" "User Commands"
+.TH QIMGVR 1 "2026-10-21" "de-xr" "User Commands"
 .SH NAME
-qimgvr \- view images and send stereoscopic output to XR
+qimgvr \- view images and video with optional stereoscopic XR output
 .SH SYNOPSIS
 .nf
 qimgvr [OPTIONS] [PATH]
 .fi
 .SH DESCRIPTION
-Qt6 image viewer with optional mpv video playback and Arc SBS depth conversion. Ordinary image and video viewing does not require the inference runtime. Automatic 2D\-to\-SBS conversion of still images runs in a separate worker.
-.SH OPTIONS
+The default CMake build uses the patched FLTK 1.4.5 frontend with OpenGL,
+OpenCV, Exiv2 and embedded libmpv. It provides browsing, thumbnails, image
+editing and save, metadata, slideshow and video playback. Still-image depth
+conversion runs in a separate Arc SBS worker; ordinary viewing does not need
+that worker or its model. Existing packed SBS can bypass depth inference.
+.PP
+The retained Qt frontend is a separate build, explicitly selected with
+.BR \-DDE_XR_TOOLKIT=Qt6 .
+Its shortcuts, settings and extra CLI options differ from the FLTK defaults.
+.SH FLTK OPTIONS
 .TP
-.B "\-\-sbs"
-Enable SBS output, including local preview without XR.
+.B \-\-sbs[=auto|always|off]
+Select stereo output. Default auto; the bare option selects always.
+The modes may also be supplied as a separate argument.
+Always uses XR output when available or a local SBS preview otherwise.
 .TP
-.B "\-\-no\-sbs"
-Disable SBS output.
+.B \-\-no\-sbs
+Disable stereo output.
 .TP
-.B "\-\-domed"
-Select DomeD output.
+.BI "\-\-input\-layout=" auto|2d|full\-sbs|half\-sbs
+Override input packing. Default auto. A separate argument is also accepted.
 .TP
-.B "\-\-input\-layout auto|2d|full\-sbs|half\-sbs"
-Override input stereo layout detection.
+.B \-\-build\-options
+Print compiled frontend features without opening a window.
 .TP
-.B "\-\-build\-options"
-Print compiled features and detected image formats.
+.B \-\-version
+Print build identity without opening a window.
 .TP
-.B "\-\-gen\-thumbs DIRECTORY"
-Generate thumbnails for a directory.
-.TP
-.B "\-\-gen\-thumbs\-size SIZE"
-Select thumbnail size for generation.
-.TP
-.B "\-\-help"
-Show usage.
-.SH KEYS
-F8 toggles SBS/XR output. F9 changes the input stereo layout override.
+.BI "\-\-smoke\-test " OUTPUT.png
+Render a diagnostic capture and exit. This argument is a filename, not a duration.
+.PP
+FLTK does not currently implement a CLI help page or thumbnail-generation CLI.
+Normal DomeD launches need no explicit routing option; presenter transport
+arguments are internal worker details.
+.SH FLTK CONTROLS
+Ctrl+O opens a file; Ctrl+Shift+S saves as; Ctrl+Z undoes edits.
+Left/Right browse, F fits, 1 shows actual pixels, T toggles thumbnails,
+and F11 toggles fullscreen. E/Q rotate, H/V flip, and C crops a selection.
+S selects Stereo / Always (XR or preview); the Stereo menu also selects
+Off, Auto and the input packing override.
+.PP
+For video, Space plays or pauses, Alt+Left/Right seek, M mutes,
+and plus/minus changes volume. Native command menus are exported through
+DBusMenu/KDE AppMenu where the session supports them.
+.SH XR AND APPEARANCE
+DomeD owns its XR Wayland socket, input seat and headset session; the viewer
+uses verified stereo surfaces without starting another OpenXR session there.
+The patched FLTK frontend follows DomeD palette and bitmap-font changes live.
+The Arc worker, prepared model and runtime/GPU support must be installed separately.
+Physical headset, WiVRn streaming and hardware inference behavior require
+validation on the target system.
 .SH ENVIRONMENT
-QIMGV_SBS_PYTHON selects the Python interpreter containing arc_sbs and its dependencies. An isolated system deployment may use /usr/local/libexec/arc\-sbs/venv/bin/python. The worker also requires the separately prepared model and GPU drivers.
+.TP
+.B QIMGV_SBS_PYTHON
+Worker Python containing arc_sbs and dependencies. FLTK uses
+/opt/arc-sbs/venv/bin/python when present, otherwise python3.
+.TP
+.B QIMGVR_SBS_DEVICE, QIMGVR_SBS_RENDERER
+Optional worker device and renderer overrides.
+.TP
+.B LD_LIBRARY_PATH
+Must resolve the matching patched FLTK 1.4.5 runtime when it is privately installed.
+.TP
+.B XDG_CONFIG_HOME
+Selects the configuration root, normally ~/.config.
 .SH FILES
-Existing viewer settings remain under ~/.config/qimgv. qimgvr uses its own thumbnail cache.
+.TP
+.I $XDG_CONFIG_HOME/qimgvr/fltk.json
+FLTK settings, separate from Qt qimgv configuration.
+.TP
+.I $XDG_CONFIG_HOME/dome/appearance.json
+Live DomeD appearance settings.
+.SH QT FRONTEND
+The opt-in Qt build additionally implements its original thumbnail-generation
+options, Qt image plugins and settings under ~/.config/qimgv.
+F8 toggles its SBS output and F9 changes its input override.
+These are not FLTK shortcuts. Full RAW, animation, ICC, printing and high-quality
+resampling parity remain incomplete in FLTK.
+.SH INSTALLATION
+Use an optimized CMake build and stage it as the regular user before system
+installation. The FLTK target installs its executable only; stage this manual
+and desktop/MIME integration separately. The legacy install-local.py helper
+assumes Qt features but does not currently pass the explicit Qt CMake selector.
 .SH SEE ALSO
-arc\-sbs(1), mpvr(1), dome\-compositor(1)
+.BR arc\-sbs (1),
+.BR mpvr (1),
+.BR dome\-compositor (1)
