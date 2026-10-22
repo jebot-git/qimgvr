@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #define GL_GLEXT_PROTOTYPES
 #include "canvas.h"
+#include "appearance.h"
 #include <EGL/egl.h>
 #include <cmath>
 #include <dlfcn.h>
@@ -67,6 +68,15 @@ void Canvas::openVideo() {
   mpv = mpv_create();
   if (!mpv)
     throw std::runtime_error("Cannot create media player");
+  // Use the same verified BDF face and effective strike as the FLTK widgets.
+  auto selected = bdf_fonts::qt_alias(dx::selected_font, "media");
+  bdf_fonts::register_font(selected.file);
+  auto family = selected.family;
+  auto pixels = std::to_string(dx::size);
+  mpv_set_option_string(mpv, "osd-font", family.c_str());
+  mpv_set_option_string(mpv, "sub-font", family.c_str());
+  mpv_set_option_string(mpv, "osd-font-size", pixels.c_str());
+  mpv_set_option_string(mpv, "sub-font-size", pixels.c_str());
   mpv_set_option_string(mpv, "vo", "libmpv");
   mpv_set_option_string(mpv, "hwdec", "auto-safe");
   mpv_set_option_string(mpv, "keep-open", "yes");
@@ -115,6 +125,17 @@ void Canvas::poll() {
     redraw();
   if (!mpv)
     return;
+  if (fontRevision != dx::font_revision) {
+    fontRevision = dx::font_revision;
+    auto selected = bdf_fonts::qt_alias(dx::selected_font, "media");
+    bdf_fonts::register_font(selected.file);
+    auto family = selected.family;
+    auto pixels = std::to_string(dx::size);
+    mpv_set_property_string(mpv, "osd-font", family.c_str());
+    mpv_set_property_string(mpv, "sub-font", family.c_str());
+    mpv_set_property_string(mpv, "osd-font-size", pixels.c_str());
+    mpv_set_property_string(mpv, "sub-font-size", pixels.c_str());
+  }
   while (auto event = mpv_wait_event(mpv, 0)) {
     if (event->event_id == MPV_EVENT_NONE)
       break;

@@ -15,6 +15,7 @@ class Canvas : public Fl_Gl_Window {
   bool draggingCrop = false;
   double x0 = 0, y0 = 0, drawW = 1, drawH = 1;
   mpv_handle *mpv = nullptr;
+  uint64_t fontRevision = 0;
   mpv_render_context *render = nullptr;
   std::atomic_bool videoDirty{false};
   std::string pendingVideo;

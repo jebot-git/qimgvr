@@ -1,4 +1,5 @@
 #include "mpvwidget.h"
+#include "../bdf_mpv_font.hpp"
 #include <stdexcept>
 
 static void wakeup(void *ctx) {
@@ -15,6 +16,7 @@ MpvWidget::MpvWidget(QWidget *parent, Qt::WindowFlags f)
     int64_t wid = parent->winId();
     mpv_set_option(mpv, "wid", MPV_FORMAT_INT64, &wid);
     
+    connect(qApp,&QGuiApplication::fontChanged,this,[this](const QFont &){bdf_mpv_font(mpv,false);});
     this->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     mpv_set_option_string(mpv, "input-cursor", "no");   // no mouse handling
     mpv_set_option_string(mpv, "cursor-autohide", "no");// no cursor-autohide, we handle that
@@ -37,6 +39,7 @@ MpvWidget::MpvWidget(QWidget *parent, Qt::WindowFlags f)
     mpv_observe_property(mpv, 0, "pause", MPV_FORMAT_FLAG);
     mpv_set_wakeup_callback(mpv, wakeup, this);
     
+    bdf_mpv_font(mpv,true);
     if (mpv_initialize(mpv) < 0)
         throw std::runtime_error("could not initialize mpv context");    
 }
