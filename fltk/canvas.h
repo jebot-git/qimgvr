@@ -11,6 +11,7 @@
 class Canvas : public Fl_Gl_Window {
   GLuint texture = 0;
   bool dirty = true;
+  bool firstImageFrame = true;
   int dragX = 0, dragY = 0, cropX = 0, cropY = 0;
   bool draggingCrop = false;
   double x0 = 0, y0 = 0, drawW = 1, drawH = 1;

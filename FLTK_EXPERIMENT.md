@@ -19,7 +19,17 @@ dismissal, deferred window close, EGL depth and borderless app-ID patches are re
 
 SBS defaults to auto. Inside DomeD the authenticated XR Wayland socket owns org.qimgvr.Sbs stereo windows, without a second OpenXR/WayVR session. The SBS view supports owner navigation, fit/actual pixels/fullscreen, zoom/pan and exported/context menus. Existing SBS bypasses depth inference. Full RAW/animation/ICC/printing/high-quality resampling parity remains incomplete; A770/OpenCL depth acceleration is unverified locally.
 
-Application menu commands are exported over DBusMenu/KDE AppMenu where applicable.
+Application menu commands are exported over DBusMenu/KDE AppMenu. In DomeD,
+a working menu registrar and window association collapse the local bar and reclaim
+its space; losing the host restores it. Keyboard shortcuts stay active in both modes.
+The image canvas requests a parent repaint after its first image frame so a newly
+created Wayland GL child can publish its stacking and position state without
+waiting for another image change.
+
+Run `uv run --no-project --with dbus-next --with python-xlib --with pillow python
+scripts/test-fltk-ui.py` for compositor-visible first-image checks, delayed canvas
+creation, native Wayland universal menus, X11 host appearance/disappearance and
+navigation through shortcuts and exported actions.
 DomeD appearance updates apply live, including native FreeType bitmap strikes.
 OpenGL widgets cache glyph textures after rasterization. Bitmap shaping/bidi and
 per-glyph fallback, accessibility/IME and broad fractional-scale coverage remain

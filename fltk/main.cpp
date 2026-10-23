@@ -22,7 +22,7 @@
 #include <optional>
 namespace fs = std::filesystem;
 class Viewer : public dx::GpuWindow {
-  Fl_Menu_Bar menu{0, 0, 1000, 30};
+  DesktopMenuBar menu{0, 0, 1000, 30};
   ThumbnailGrid thumbnails{0, 30, 190, 610};
   Canvas canvas{0, 30, 1000, 610};
   Fl_Value_Slider seek{10, 645, 980, 20};
@@ -256,6 +256,7 @@ public:
     stereo.message = [this](const std::string &value) { message(value); };
     settings(false);
     showThumbnails(showThumbs);
+    menu.layoutChanged = [this] { resize(x(), y(), w(), h()); };
     desktop = std::make_unique<DesktopMenu>(*this, menu);
     Fl::add_timeout(.025, tick, this);
   }
@@ -267,21 +268,18 @@ public:
   }
   void showThumbnails(bool value) {
     showThumbs = value;
-    if (value) {
-      thumbnails.show();
-      canvas.resize(190, 30, std::max(1, w() - 190), std::max(1, h() - 90));
-    } else {
-      thumbnails.hide();
-      canvas.resize(0, 30, w(), std::max(1, h() - 90));
-    }
+    if (value) thumbnails.show();
+    else thumbnails.hide();
+    resize(x(), y(), w(), h());
     redraw();
   }
   void resize(int x, int y, int w, int h) override {
     dx::GpuWindow::resize(x, y, w, h);
-    menu.resize(0, 0, w, 30);
-    thumbnails.resize(0, 30, 190, std::max(1, h - 90));
-    canvas.resize(showThumbs ? 190 : 0, 30,
-                  std::max(1, w - (showThumbs ? 190 : 0)), std::max(1, h - 90));
+    const int top = menu.universal() ? 0 : 30;
+    menu.resize(0, 0, w, top);
+    thumbnails.resize(0, top, 190, std::max(1, h - top - 60));
+    canvas.resize(showThumbs ? 190 : 0, top,
+                  std::max(1, w - (showThumbs ? 190 : 0)), std::max(1, h - top - 60));
     seek.resize(10, h - 55, w - 20, 20);
     status.resize(10, h - 30, w - 20, 25);
   }

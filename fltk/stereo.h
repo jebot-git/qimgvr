@@ -8,7 +8,7 @@
 #include <FL/Fl_Menu_Button.H>
 #include <chrono>
 class StereoWindow : public Canvas {
-  Fl_Menu_Bar menu{0, 0, 0, 0};
+  DesktopMenuBar menu{0, 0, 0, 0};
   std::unique_ptr<DesktopMenu> desktop;
   std::string endpoint;
   static void action(Fl_Widget *widget, void *data) {

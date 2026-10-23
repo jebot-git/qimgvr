@@ -26,6 +26,7 @@ void Canvas::hide() {
       glDeleteTextures(1, &texture);
     texture = 0;
     dirty = true;
+    firstImageFrame = true;
   }
   Fl_Gl_Window::hide();
 }
@@ -295,6 +296,7 @@ void Canvas::draw() {
   if (!context_valid()) {
     texture = 0;
     dirty = true;
+    firstImageFrame = true;
   }
   glViewport(0, 0, pixel_w(), pixel_h());
   glClearColor(0, 0, 0, stereo ? 0 : 1);
@@ -311,8 +313,16 @@ void Canvas::draw() {
           {MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME, &block},
           {MPV_RENDER_PARAM_INVALID, nullptr}};
       mpv_render_context_render(render, params);
-    } else
+    } else {
       drawImage();
+      if (firstImageFrame && !pixels.empty()) {
+        firstImageFrame = false;
+        // A Wayland GL child can submit its first buffer after the parent has
+        // finished painting. Commit the parent again to publish the child and
+        // its stacking/position state, even when the image is otherwise idle.
+        if (auto owner = window()) owner->redraw();
+      }
+    }
   } catch (const std::exception &e) {
     videoError = e.what();
     closeVideo();

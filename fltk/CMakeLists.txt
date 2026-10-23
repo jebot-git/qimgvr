@@ -45,3 +45,11 @@ if(BUILD_TESTING)
   target_link_libraries(qimgvr-image-test PRIVATE qimgvr-image)
   add_test(NAME native-images COMMAND qimgvr-image-test)
 endif()
+
+if(BUILD_TESTING)
+  # Driven by scripts/test-ui.py so assertions inspect compositor-visible pixels.
+  add_executable(qimgvr-canvas-test canvas-test.cpp canvas.cpp)
+  target_compile_features(qimgvr-canvas-test PRIVATE cxx_std_17)
+  target_include_directories(qimgvr-canvas-test PRIVATE ${MPV_HEADERS_INCLUDE_DIRS})
+  target_link_libraries(qimgvr-canvas-test PRIVATE qimgvr-image fltk::gl-shared OpenGL::GL PkgConfig::MEDIA fltk::fltk-shared fltk::images-shared PkgConfig::FONTCONFIG ${DE_XR_MPV_LIBRARY})
+endif()
