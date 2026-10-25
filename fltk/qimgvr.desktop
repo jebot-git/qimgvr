@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=qimgvr
+GenericName=Image and Model Viewer
+Comment=View images, video and glTF models with stereoscopic XR support
+Exec=qimgvr %f
+Icon=fltk-vr-image
+StartupWMClass=org.qimgvr.Sbs
+Terminal=false
+Type=Application
+Categories=Graphics;Viewer;
+MimeType=video/webm;video/mp4;video/x-matroska;image/jpeg;image/gif;image/png;image/bmp;image/webp;image/tiff;image/avif;image/heif;image/heic;image/jxl;image/svg+xml;image/x-exr;model/gltf-binary;model/gltf+json;
+Keywords=image;view;qimgvr;qimgv;picture;stereo;SBS;XR;model;glTF;

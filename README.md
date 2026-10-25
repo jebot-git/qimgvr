@@ -36,8 +36,8 @@ installer. Staging the manual explicitly works for the FLTK target.
 ## FLTK use and controls
 
 ```sh
-qimgvr /path/to/photo.jpg                  # SBS auto by default
-qimgvr --sbs=always /path/to/photo.jpg      # XR output or local SBS preview
+qimgvr /path/to/photo.jpg                  # saved stereo mode; auto on first launch
+qimgvr --sbs=always /path/to/photo.jpg      # SBS directly in the main view
 qimgvr --no-sbs /path/to/video.mp4
 qimgvr --input-layout=half-sbs stereo.jpg
 qimgvr --build-options
@@ -46,7 +46,7 @@ qimgvr --build-options
 `--sbs` alone is equivalent to `--sbs=always`; accepted modes are `auto`,
 `always` and `off`. Input layout accepts `auto`, `2d`, `full-sbs` and `half-sbs`.
 `--version` and `--build-options` are safe non-window introspection commands.
-The FLTK frontend has no `--help` or thumbnail-generation CLI. Its
+Use `--help` for the FLTK options. It has no thumbnail-generation CLI. Its
 `--smoke-test OUTPUT.png` captures a diagnostic image. Internal presenter flags
 are worker transport details, not normal DomeD launch options.
 
@@ -55,7 +55,7 @@ slideshow and embedded libmpv playback. Use Ctrl+O to open, Ctrl+Shift+S to save
 as, Ctrl+Z to undo, arrows for previous/next, F to fit, 1 for actual pixels,
 T for thumbnails and F11 for fullscreen. E/Q rotate, H/V flip and C crops a
 selection. Space pauses video, Alt+Left/Right seek, M mutes and +/- changes
-volume. **Stereo → Always (XR or preview)** uses S; F8/F9 belong to the Qt
+volume. **Stereo → Always (XR or desktop)** uses S; F8/F9 belong to the Qt
 frontend, not this FLTK build.
 
 The Arc SBS worker performs still-image inference in a separate persistent
@@ -63,8 +63,12 @@ process; already-packed SBS bypasses depth inference. `QIMGV_SBS_PYTHON` selects
 its interpreter (default `/opt/arc-sbs/venv/bin/python` if present, otherwise
 `python3`). It needs `arc_sbs`, the separately prepared model and appropriate GPU
 drivers. `QIMGVR_SBS_DEVICE` and `QIMGVR_SBS_RENDERER` override worker settings.
-Normal viewing does not require the depth model. Inside DomeD, stereo surfaces
-use its verified XR Wayland socket without creating a second XR session.
+Normal viewing does not require the depth model. Converted SBS images and glTF
+stereo render in the main viewer; no preview window is created. S toggles
+stereo, Escape disables it, and F11 uses the existing main-window fullscreen.
+The selected mode is saved. File/export dialogs remain mono. Inside DomeD,
+turning stereo off supplies the same mono view to both eyes; no second XR
+session is created. Thumbnails use a horizontal strip in SBS mode.
 
 The FLTK frontend supports **Export as glTF...** for rendered stereo stills,
 plus native `.glb` / `.gltf` viewing with model controls, animation and tracked

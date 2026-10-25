@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include "packed-frame.h"
 #include "appearance.h"
 #include "image.h"
 #include <FL/Fl_Gl_Window.H>
@@ -10,6 +11,7 @@
 #include <mpv/render_gl.h>
 class Canvas : public Fl_Gl_Window {
   GLuint texture = 0;
+  PackedFrame monoFrame;
   bool dirty = true;
   bool firstImageFrame = true;
   int dragX = 0, dragY = 0, cropX = 0, cropY = 0;
@@ -29,7 +31,7 @@ class Canvas : public Fl_Gl_Window {
 public:
   cv::Mat pixels;
   double zoom = 1, panX = 0, panY = 0;
-  bool fit = true, stereo = false, cropMode = false;
+  bool fit = true, stereo = false, cropMode = false, packed = false, xrCoordinates = false;
   std::function<void(cv::Rect)> cropped;
   std::function<void(std::string)> failed;
   std::function<void()> edited;

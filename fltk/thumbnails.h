@@ -11,14 +11,16 @@ class ThumbnailGrid : public Fl_Widget {
   int selected = 0, first = 0;
   std::map<std::string, cv::Mat> cache;
   std::future<std::pair<std::string, cv::Mat>> pending;
+  int capacity() const { return std::max(1, horizontal ? w() / 190 : h() / 105); }
 
 public:
+  bool horizontal = false;
   std::function<void(int)> chosen;
   ThumbnailGrid(int x, int y, int w, int h) : Fl_Widget(x, y, w, h) {}
   void setFiles(const std::vector<std::filesystem::path> &value, int current) {
     files = value;
     selected = current;
-    first = std::max(0, current - h() / 105 + 1);
+    first = std::max(0, current - capacity() + 1);
     cache.clear();
     redraw();
   }
@@ -26,8 +28,8 @@ public:
     selected = current;
     if (selected < first)
       first = selected;
-    if (selected >= first + h() / 105)
-      first = std::max(0, selected - h() / 105 + 1);
+    if (selected >= first + capacity())
+      first = std::max(0, selected - capacity() + 1);
     redraw();
   }
   void poll() {
@@ -41,7 +43,7 @@ public:
     }
     if (pending.valid() || !visible())
       return;
-    for (int i = first; i < std::min(int(files.size()), first + h() / 105 + 2);
+    for (int i = first; i < std::min(int(files.size()), first + capacity() + 2);
          ++i) {
       auto path = files[i];
       if (cache.count(path.string()))
@@ -69,23 +71,25 @@ public:
     fl_push_clip(x(), y(), w(), h());
     fl_color(FL_BACKGROUND2_COLOR);
     fl_rectf(x(), y(), w(), h());
-    for (int i = first; i < std::min(int(files.size()), first + h() / 105 + 2);
+    for (int i = first; i < std::min(int(files.size()), first + capacity() + 2);
          ++i) {
-      int top = y() + (i - first) * 105;
+      int left = x() + (horizontal ? (i - first) * 190 : 0);
+      int top = y() + (horizontal ? 0 : (i - first) * 105);
+      int cellWidth = horizontal ? 190 : w();
       if (i == selected) {
         fl_color(FL_SELECTION_COLOR);
-        fl_rectf(x(), top, w(), 105);
+        fl_rectf(left, top, cellWidth, 105);
       }
       auto it = cache.find(files[i].string());
       if (it != cache.end() && !it->second.empty()) {
         auto &image = it->second;
-        fl_draw_image(image.data, x() + (w() - image.cols) / 2, top + 3,
+        fl_draw_image(image.data, left + (cellWidth - image.cols) / 2, top + 3,
                       image.cols, image.rows, 3, image.step);
       }
       fl_color(FL_FOREGROUND_COLOR);
       fl_font(dx::font, dx::size);
       auto name = files[i].filename().string();
-      fl_draw(name.c_str(), x() + 5, top + 78, w() - 10, 26,
+      fl_draw(name.c_str(), left + 5, top + 78, cellWidth - 10, 26,
               FL_ALIGN_CENTER | FL_ALIGN_CLIP);
     }
     fl_pop_clip();
@@ -98,7 +102,7 @@ public:
       return 1;
     }
     if (e == FL_PUSH) {
-      int row = first + (Fl::event_y() - y()) / 105;
+      int row = first + (horizontal ? (Fl::event_x() - x()) / 190 : (Fl::event_y() - y()) / 105);
       if (row >= 0 && row < int(files.size()) && chosen)
         chosen(row);
       return 1;

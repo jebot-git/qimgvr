@@ -24,7 +24,6 @@ StereoController::StereoController() {
   };
 }
 StereoController::~StereoController() {
-  preview.reset();
   worker.stop();
   controls.reset();
   if (!temporary.empty()) {
@@ -68,8 +67,6 @@ void StereoController::setSource(const cv::Mat &image, std::string name,
   metadata = std::move(tags);
   ++generation;
   hidePending = true;
-  if (preview)
-    preview->hide();
   if (active() && !source.empty())
     try {
       start();
@@ -82,8 +79,6 @@ void StereoController::setMode(std::string value) {
   mode = std::move(value);
   ++generation;
   hidePending = true;
-  if (preview)
-    preview->hide();
   if (active() && !source.empty())
     try {
       start();
@@ -96,8 +91,6 @@ void StereoController::setLayout(std::string value) {
   layout = std::move(value);
   ++generation;
   hidePending = true;
-  if (preview)
-    preview->hide();
   if (active() && !source.empty())
     try {
       start();
@@ -176,51 +169,14 @@ void StereoController::response(const Json &object) {
       std::filesystem::remove(currentOutput, ec);
     currentOutput = output;
     outputGeneration = generation;
-    if (connected) {
-      char exe[PATH_MAX];
-      auto n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-      if (n <= 0)
-        throw std::runtime_error("Cannot identify SBS presenter");
-      exe[n] = '\0';
-      busy = true;
-      worker.send({{"action", "present"},
-                   {"id", generation},
-                   {"output", output.string()},
-                   {"display", (temporary / "display.png").string()},
-                   {"presenter", exe}});
-    } else if (mode == "always") {
-      if (!preview)
-        preview = std::make_unique<StereoWindow>();
-      preview->ownerCommand = [this](const std::string &value) {
-        if (value == "Close stereo view")
-          setMode("off");
-        else if (commandRequested)
-          commandRequested(value);
-      };
-      preview->exportSourceName=sourceName;
-      preview->setImage(readImage(output).rgba);
-      preview->show();
-      if (message)
-        message(object.value("depth_bypassed", false)
-                    ? "Existing SBS image — depth conversion skipped"
-                    : "SBS preview ready");
-    }
+    outputPixels = readImage(output).rgba;
+    if (message)
+      message(object.value("depth_bypassed", false)
+                  ? "Existing SBS image — depth conversion skipped"
+                  : "SBS image ready");
   } else if (action == "probe") {
     if (connected && !was) {
       ++generation;
-    } else if (!connected && was && mode == "always" &&
-               !currentOutput.empty()) {
-      if (!preview)
-        preview = std::make_unique<StereoWindow>();
-      preview->ownerCommand = [this](const std::string &value) {
-        if (value == "Close stereo view")
-          setMode("off");
-        else if (commandRequested)
-          commandRequested(value);
-      };
-      preview->exportSourceName=sourceName;
-      preview->setImage(readImage(currentOutput).rgba);
-      preview->show();
     }
   } else if (action == "present" && message)
     message(connected ? "SBS image displayed in XR" : "Headset disconnected");

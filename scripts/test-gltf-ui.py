@@ -80,13 +80,8 @@ for line in sys.stdin:
   exported=tmp/'exports/b-stereo.glb';wait(lambda:exported.exists(),20)
   (out/'main-menu.glb').write_bytes(exported.read_bytes());assert exported.read_bytes()[:4]==b'glTF';exported.unlink()
   print('PASS main menu native file chooser exports the current stereo image',flush=True)
-  # The stereo presenter owns its export action even without an owner-command RPC.
-  presenter='/org/de_xr/FLTK/Menu2';wait(lambda:enabled(presenter))
-  action('Export as glTF...',presenter,True)
-  dialog=wait(lambda:find('Export stereo image as glTF'));key(dialog,'Return')
-  exported=tmp/'exports/b-stereo.glb';wait(lambda:exported.exists(),20)
-  (out/'stereo-menu.glb').write_bytes(exported.read_bytes())
-  print('PASS stereo presenter menu exports its own rendered pixels',flush=True)
+  assert len([w for w in windows() if 'qimgvr' in str(w.get_wm_name()or'') and w.get_attributes().map_state==X.IsViewable])==1
+  print('PASS image SBS conversion and export use only the main viewer window',flush=True)
   assert app.poll() is None
  finally:
   xd.close()

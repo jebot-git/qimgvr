@@ -195,8 +195,7 @@ DomeMode observe() {
     uint64_t windowId = 0;
     for (const auto &window : scene.value("windows", nlohmann::json::array())) {
       if (window.value("app_id", "") == "org.qimgvr.Sbs" &&
-          window.value("client_pid", 0) == getpid() &&
-          window.value("workspace", 0) == scene.value("active_workspace", 0)) {
+          window.value("client_pid", 0) == getpid()) {
         lane = std::clamp(window.value("lane", 1), 0, 2);
         windowId = window.at("id").get<uint64_t>();
         out.windowId = windowId;

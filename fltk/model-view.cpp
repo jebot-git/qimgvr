@@ -142,14 +142,21 @@ ModelView::ModelView(int x, int y, int w, int h,
   mode(FL_RGB | FL_ALPHA | FL_DOUBLE | FL_DEPTH | FL_OPENGL3);
   end();
 }
-ModelView::~ModelView() {
+ModelView::~ModelView() { releaseGpu(); }
+void ModelView::hide() {
+  releaseGpu();
+  Fl_Gl_Window::hide();
+}
+void ModelView::releaseGpu() {
   if (context()) {
     make_current();
-    renderer.clear();
+    renderer.clear(true);
     targets->release();
+    monoFrame.release();
   } else {
     renderer.abandon();
     targets->abandon();
+    monoFrame.abandon();
   }
 }
 void ModelView::setModel(std::shared_ptr<const Model> value) {
@@ -173,6 +180,7 @@ void ModelView::draw() {
   if (!context_valid()) {
     renderer.abandon();
     targets->abandon();
+    monoFrame.abandon();
     context_valid(1);
   }
   unsigned char r, g, b;
@@ -214,6 +222,7 @@ void ModelView::draw() {
       renderer.draw(projection * matrix(inverse(eye)), root, eye.position,
                     pixel_w(), pixel_h(), {r / 255.f, g / 255.f, b / 255.f, 1});
     }
+    if (packed && !stereo) monoFrame.pack(pixel_w(), pixel_h());
     error.clear();
     ++frames;
   } catch (const std::exception &e) {
@@ -236,6 +245,14 @@ void ModelView::drawStereo() {
   float width = presentation.hasWindowQuad ? presentation.windowSize[0] : 1.3f;
   float height =
       presentation.hasWindowQuad ? presentation.windowSize[1] : width * ph / pw;
+  auto host = dynamic_cast<Fl_Window *>(parent());
+  float u0 = host ? float(x()) / host->w() : 0;
+  float v0 = host ? float(y()) / host->h() : 0;
+  float uw = host ? float(w()) / host->w() : 1;
+  float vh = host ? float(h()) / host->h() : 1;
+  float centreX = presentation.hasWindowQuad ? width * (u0 + uw / 2 - .5f) : 0;
+  float centreY = presentation.hasWindowQuad ? height * (.5f - v0 - vh / 2) : 0;
+  if (presentation.hasWindowQuad) { width *= uw; height *= vh; }
   CylinderSurface cylinder;
   Pose tangent, panel;
   if (presentation.hasWindowQuad) {
@@ -251,12 +268,12 @@ void ModelView::drawStereo() {
                 presentation.cylinderHorizontal,
                 presentation.cylinderTop,
                 presentation.cylinderBottom};
-    tangent = cylinder.tangent(.5f, .5f);
+    tangent = cylinder.tangent(u0 + uw / 2, v0 + vh / 2);
   }
   auto surface = [&](float u, float v) {
     if (!presentation.hasCylinder)
       return Vec3{(u - .5f) * width, 1.6f + (.5f - v) * height, -distance};
-    auto local = transform(inverse(tangent), cylinder.point(u, v));
+    auto local = transform(inverse(tangent), cylinder.point(u0 + u * uw, v0 + v * vh));
     return Vec3{local.x, 1.6f + local.y, local.z - distance};
   };
   float scale = .82f * std::min(width, height) * 1.5f / camera->distance;
@@ -289,7 +306,8 @@ void ModelView::drawStereo() {
       }
       auto local =
           transform(inverse(presentation.hasCylinder ? tangent : panel), world);
-      relative = {local.x, local.y, local.z - distance};
+      relative = {local.x - (presentation.hasCylinder ? 0 : centreX),
+                  local.y - (presentation.hasCylinder ? 0 : centreY), local.z - distance};
     }
     auto vp = windowEyeProjection(relative, width, height, distance);
     Vec3 position{relative.x, 1.6f + relative.y, relative.z};
@@ -370,61 +388,5 @@ bool ModelView::snapshot(const std::filesystem::path &path) {
   for (int y = pixel_h() - 1; y >= 0; --y)
     file.write((char *)data.data() + size_t(y) * pixel_w() * 3, pixel_w() * 3);
   return bool(file);
-}
-ModelPresenter::ModelPresenter(
-    std::shared_ptr<ModelCamera> camera,
-    std::function<void(const std::string &)> callback)
-    : ModelView(0, 0, 1000, 700, std::move(camera), true),
-      command(std::move(callback)) {
-  xclass("org.qimgvr.Sbs");
-  copy_label("qimgvr — glTF stereo view");
-  size_range(300, 200);
-  menu.hide();
-  for (auto label :
-       {"File/Previous", "File/Next", "File/Open...", "File/Metadata",
-        "File/Close stereo view", "View/Reset model camera",
-        "Model/Play or pause animation", "Model/Next animation"})
-    menu.add(
-        label,
-        std::string(label) == "File/Previous"                   ? FL_Left
-        : std::string(label) == "File/Next"                     ? FL_Right
-        : std::string(label) == "File/Open..."                  ? FL_CTRL + 'o'
-        : std::string(label) == "File/Metadata"                 ? 'i'
-        : std::string(label) == "View/Reset model camera"       ? 'r'
-        : std::string(label) == "Model/Play or pause animation" ? ' '
-                                                                : 0,
-        [](Fl_Widget *w, void *p) {
-          auto self = static_cast<ModelPresenter *>(p);
-          auto item = static_cast<Fl_Menu_ *>(w)->mvalue();
-          if (item)
-            self->command(item->label());
-        },
-        this);
-  desktop = std::make_unique<DesktopMenu>(*this, menu);
-  this->callback(
-      [](Fl_Widget *, void *p) {
-        // The presenter is the model's XR document window. A native window
-        // close must close its owner too, rather than leave a loaded mono
-        // window behind for the launcher to reactivate on another workspace.
-        // Escape and the explicit stereo-only menu action still disable stereo.
-        static_cast<ModelPresenter *>(p)->command("Quit");
-      },
-      this);
-}
-int ModelPresenter::handle(int event) {
-  if ((event == FL_SHORTCUT || event == FL_KEYDOWN) &&
-      Fl::event_key() == FL_Escape) {
-    command("Close stereo view");
-    return 1;
-  }
-  if (event == FL_SHORTCUT && menu.handle(event))
-    return 1;
-  if (event == FL_PUSH && Fl::event_button() == FL_RIGHT_MOUSE) {
-    Fl_Menu_Button popup(Fl::event_x(), Fl::event_y(), 0, 0);
-    popup.menu(menu.menu());
-    popup.popup();
-    return 1;
-  }
-  return ModelView::handle(event);
 }
 } // namespace qimgvr

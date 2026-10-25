@@ -47,7 +47,7 @@ with tempfile.TemporaryDirectory(prefix='qimgvr-model-xr-') as directory:
   wait(state)
   record=wait(lambda:next((p for p in root.glob('*.dome-session.json') if json.loads(p.read_text())['realm']=='xr'),None))
   app=start([binary,fixture],'viewer',{**env,'WAYLAND_DISPLAY':record.name.removesuffix('.dome-session.json')})
-  main=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='qimgvr'),None))
+  main=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs'),None))
   tracking={'x':0}
   def heartbeat():
    while not stop.wait(.1):
@@ -55,21 +55,26 @@ with tempfile.TemporaryDirectory(prefix='qimgvr-model-xr-') as directory:
      x=tracking['x'];request('xr-session',{'id':7731,'visible':True,'focused':True,'frame_period_ns':11111111,'head':{'position_m':[x,1.4,0],'orientation_xyzw':[0,0,0,1]},'eyes':[{'position_m':[x+offset,1.4,0],'orientation_xyzw':[0,0,0,1]} for offset in [-.032,.032]],'horizontal_fov_deg':90,'mouse_viewport':[-.7,.7,-.65,.65]})
     except OSError:return
   threading.Thread(target=heartbeat,daemon=True).start();wait(lambda:request('xr-control')['input_realm']=='xr')
-  window=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs'),None))
+  window=main
+  assert len([w for w in state()['windows'] if w.get('client_pid')==app.pid])==1
   assert window['stereo']=='side_by_side',window
   wait(lambda:any(q['id']==window['id'] and q.get('dome') for q in request('integrations/comic-chat')['quads']))
   time.sleep(.7)
   def capture(name):
    with urllib.request.urlopen(base+'/api/xr-frame/'+str(window['id']),timeout=3)as f:im=Image.frombytes('RGBA',(int(f.headers['X-Dome-Width']),int(f.headers['X-Dome-Height'])),f.read())
    im.save(out/(name+'.png'));return np.array(im)
-  first=wait(lambda:capture('stereo-tracked'))
+  def readyFrame():
+   pixels=capture('stereo-tracked');w=pixels.shape[1]//2
+   delta=np.mean(np.abs(pixels[:,:w,:3].astype(float)-pixels[:,-w:,:3]))
+   return pixels if delta>.3 else None
+  first=wait(readyFrame,30)
   w=first.shape[1]//2;difference=float(np.mean(np.abs(first[:,:w,:3].astype(float)-first[:,-w:,:3])))
   assert difference>.3,('Stereo eyes identical or blank',difference)
   tracking['x']=.08;time.sleep(.6);moved=wait(lambda:capture('stereo-head-shift'))
   motion=float(np.mean(np.abs(first.astype(float)-moved.astype(float))));assert motion>.3,('No head parallax',motion)
   (out/'metrics.json').write_text(json.dumps({'eyeDifference':difference,'headMotionDifference':motion,'window':window},indent=2)+'\n')
   # The model presenter uses the same mono-dialog policy as image presenters.
-  service=wait(lambda:owner(app.pid));menu='/org/de_xr/FLTK/Menu2'
+  service=wait(lambda:owner(app.pid));menu='/org/de_xr/FLTK/Menu1'
   layout=wait(lambda:dbus(service,menu,'com.canonical.dbusmenu.GetLayout','0','-1','[]'))
   item=re.search(r"\((\d+), \{'label': <'Open\.\.\.'>",layout)[1]
   activation=start(['gdbus','call','--session','--dest',service,'--object-path',menu,'--method','com.canonical.dbusmenu.Event','--',item,'clicked','<0>','0'],'open-event')
@@ -81,7 +86,7 @@ with tempfile.TemporaryDirectory(prefix='qimgvr-model-xr-') as directory:
   wait(lambda:not any(w['id']==dialog['id'] for w in state()['windows']));assert app.poll()is None
   # Keep an unrelated native window alive while closing each model window.
   witness=start([binary,'--no-sbs',fixture],'witness',{**env,'WAYLAND_DISPLAY':record.name.removesuffix('.dome-session.json'),'XDG_CONFIG_HOME':directory+'/witness-config'})
-  witnessWindow=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==witness.pid and w['app_id']=='qimgvr'),None))
+  witnessWindow=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==witness.pid and w['app_id']=='org.qimgvr.Sbs'),None))
   def survives():
    assert witness.poll() is None
    assert any(w['id']==witnessWindow['id'] and w['xr_visible'] and not w['minimized'] for w in state()['windows'])
@@ -100,34 +105,69 @@ with tempfile.TemporaryDirectory(prefix='qimgvr-model-xr-') as directory:
    for _ in range(6):
     time.sleep(.1);xtest.fake_input(xd,X.KeyPress,wKey);xd.sync()
    xtest.fake_input(xd,X.KeyRelease,wKey);xtest.fake_input(xd,X.KeyRelease,superKey);xd.sync()
-  request('action',{'op':'focus','id':window['id']})
-  wait(lambda:state()['focused']==window['id'])
-  time.sleep(.2)
-  code=xd.keysym_to_keycode(XK.string_to_keysym('Escape'))
-  xtest.fake_input(xd,X.KeyPress,code);xtest.fake_input(xd,X.KeyRelease,code);xd.sync()
-  wait(lambda:not any(w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs' for w in state()['windows']))
-  time.sleep(.3);assert app.poll() is None;wait(survives)
-  # Re-enable stereo, then close its XR document window with a real compositor
-  # close request while model rendering and its polling timer are active.
-  layout=dbus(service,'/org/de_xr/FLTK/Menu1','com.canonical.dbusmenu.GetLayout','0','-1','[]')
-  toggle=re.search(r"\((\d+), \{'label': <'Always \(XR or preview\)'>",layout)[1]
-  dbus(service,'/org/de_xr/FLTK/Menu1','com.canonical.dbusmenu.Event',toggle,'clicked','<0>','0')
-  reopened=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs'),None))
-  closeWithSuperW(reopened['id'])
+  def action(label):
+   layout=dbus(service,menu,'com.canonical.dbusmenu.GetLayout','0','-1','[]')
+   item=re.search(r"\((\d+), \{'label': <'"+re.escape(label)+"'>",layout)[1]
+   dbus(service,menu,'com.canonical.dbusmenu.Event',item,'clicked','<0>','0')
+  def eyeDifference(name):
+   pixels=capture(name);w=pixels.shape[1]//2
+   return float(np.mean(np.abs(pixels[:,:w,:3].astype(float)-pixels[:,-w:,:3])))
+  action('Off');time.sleep(.5)
+  wait(lambda:eyeDifference('mono-in-main')<.15)
+  assert app.poll() is None and any(w['id']==main['id'] for w in state()['windows'])
+  assert len([w for w in state()['windows'] if w.get('client_pid')==app.pid])==1
+  action('Always (XR or desktop)');time.sleep(.5)
+  wait(lambda:eyeDifference('stereo-in-main')>.3)
+  beforeThumb=capture('before-thumbnails')
+  action('Thumbnails')
+  wait(lambda:float(np.mean(np.abs(capture('thumbnails-in-main').astype(float)-beforeThumb)))>.5)
+  action('Thumbnails')
+  wait(lambda:float(np.mean(np.abs(capture('thumbnails-hidden').astype(float)-beforeThumb)))<.3)
+  action('Fullscreen');time.sleep(.4)
+  wait(lambda:eyeDifference('fullscreen-in-main')>.3)
+  assert any(w['id']==main['id'] for w in state()['windows'])
+  action('Fullscreen');time.sleep(.4)
+  assert len([w for w in state()['windows'] if w.get('client_pid')==app.pid])==1
+  request('action',{'op':'maximize','id':main['id']});time.sleep(.4)
+  wait(lambda:eyeDifference('maximized-in-main')>.3)
+  closeWithSuperW(main['id'])
   wait(lambda:app.poll() is not None)
   assert app.returncode==0,('Abnormal model-close exit',app.returncode)
   wait(lambda:not any(w.get('client_pid')==app.pid for w in state()['windows']))
   wait(survives)
-  # A fresh viewer's main-window close must also remove its stereo surface.
-  app=start([binary,fixture],'main-close',{**env,'WAYLAND_DISPLAY':record.name.removesuffix('.dome-session.json'),'XDG_CONFIG_HOME':directory+'/main-close-config'})
-  main=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='qimgvr'),None))
-  wait(lambda:any(w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs' for w in state()['windows']))
-  closeWithSuperW(main['id'])
-  wait(lambda:app.poll() is not None)
-  assert app.returncode==0,('Abnormal main-close exit',app.returncode)
-  wait(lambda:not any(w.get('client_pid')==app.pid for w in state()['windows']))
+  # The normal image worker returns pixels to this same window; a separate
+  # present RPC is a regression. Use a deterministic worker to avoid depth/GPU
+  # model dependencies for an existing full-SBS image.
+  worker=root/'image-worker'
+  worker.write_text("""#!/usr/bin/python3
+import sys,json,shutil
+for line in sys.stdin:
+ r=json.loads(line);a=r.get('action')
+ if a=='quit':break
+ assert a!='present','A separate presenter was requested'
+ v={'action':a,'id':r.get('id'),'status':'ok','connected':True}
+ if a=='convert':
+  shutil.copyfile(r['input'],r['output']);v.update(output=r['output'],depth_bypassed=True)
+ print(json.dumps(v),flush=True)
+""")
+  worker.chmod(0o755)
+  source=root/'sbs.png';im=Image.new('RGBA',(256,128),(235,45,65,255));im.paste((35,165,220,255),(128,0,256,128));im.save(source)
+  app=start([binary,'--sbs=always','--input-layout=full-sbs',source],'image-viewer',{**env,'WAYLAND_DISPLAY':record.name.removesuffix('.dome-session.json'),'XDG_CONFIG_HOME':directory+'/image-config','QIMGV_SBS_PYTHON':os.environ.get('QIMGVR_XR_REAL_IMAGE_WORKER',str(worker))})
+  window=main=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs'),None))
+  service=wait(lambda:owner(app.pid))
+  wait(lambda:eyeDifference('image-sbs-in-main')>30)
+  assert len([w for w in state()['windows'] if w.get('client_pid')==app.pid])==1
+  action('Off');time.sleep(.4);wait(lambda:eyeDifference('image-mono-in-main')<.15)
+  action('Always (XR or desktop)');wait(lambda:eyeDifference('image-sbs-restored')>30)
+  action('Export as glTF...')
+  dialog=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['title']=='Export stereo image as glTF'),None))
+  assert dialog['app_id']=='qimgvr' and dialog['stereo']=='mono',dialog
+  request('action',{'op':'focus','id':dialog['id']});time.sleep(.2)
+  code=xd.keysym_to_keycode(XK.string_to_keysym('Escape'));xtest.fake_input(xd,X.KeyPress,code);xtest.fake_input(xd,X.KeyRelease,code);xd.sync()
+  wait(lambda:not any(w['id']==dialog['id'] for w in state()['windows']))
+  closeWithSuperW(main['id']);wait(lambda:app.poll() is not None);assert app.returncode==0
   wait(survives)
-  print('PASS native Wayland geometry stereo, tracked-eye cylinder projection, head parallax, mono model-file chooser and Super+W closes preserve unrelated XR windows')
+  print('PASS native Wayland geometry stereo, tracked-eye cylinder projection, head parallax, mono model-file chooser and single model/image main window toggles mono/stereo, fullscreen/maximize and Super+W preserves unrelated XR windows')
  finally:
   stop.set()
   for p in reversed(children):

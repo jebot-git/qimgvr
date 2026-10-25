@@ -15,8 +15,10 @@ Canvas::~Canvas() {
   if (context())
     make_current();
   closeVideo();
-  if (context() && texture)
-    glDeleteTextures(1, &texture);
+  if (context()) {
+    if (texture) glDeleteTextures(1, &texture);
+    monoFrame.release();
+  }
 }
 void Canvas::hide() {
   if (context()) {
@@ -25,6 +27,7 @@ void Canvas::hide() {
     if (texture)
       glDeleteTextures(1, &texture);
     texture = 0;
+    monoFrame.release();
     dirty = true;
     firstImageFrame = true;
   }
@@ -295,6 +298,7 @@ void Canvas::drawImage(bool) {
 void Canvas::draw() {
   if (!context_valid()) {
     texture = 0;
+    monoFrame.abandon();
     dirty = true;
     firstImageFrame = true;
   }
@@ -313,8 +317,10 @@ void Canvas::draw() {
           {MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME, &block},
           {MPV_RENDER_PARAM_INVALID, nullptr}};
       mpv_render_context_render(render, params);
+      if (packed) monoFrame.pack(pixel_w(), pixel_h());
     } else {
       drawImage();
+      if (packed && !stereo) monoFrame.pack(pixel_w(), pixel_h());
       if (firstImageFrame && !pixels.empty()) {
         firstImageFrame = false;
         // A Wayland GL child can submit its first buffer after the parent has
@@ -348,7 +354,7 @@ int Canvas::handle(int event) {
   if (event == FL_DRAG) {
     int X = Fl::event_x() - x(), Y = Fl::event_y() - y();
     if (!draggingCrop) {
-      panX += (X - dragX) * (stereo ? 2 : 1);
+      panX += (X - dragX) * (stereo && !xrCoordinates ? 2 : 1);
       panY += Y - dragY;
     }
     dragX = X;

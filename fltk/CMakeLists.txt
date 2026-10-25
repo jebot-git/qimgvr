@@ -44,6 +44,7 @@ get_filename_component(DE_XR_FLTK_LIBRARY_DIR "${DE_XR_FLTK_LIBRARY}" DIRECTORY)
 set_target_properties(qimgvr PROPERTIES BUILD_RPATH "${DE_XR_FLTK_LIBRARY_DIR};${DE_XR_BITMAP_ASS_DIR};${CMAKE_CURRENT_SOURCE_DIR}/../../mpvr/build" INSTALL_RPATH "$ORIGIN/../lib;$ORIGIN/../lib/bitmap;${DE_XR_BITMAP_ASS_DIR}")
 include(GNUInstallDirs)
 install(TARGETS qimgvr RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES qimgvr.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 
 include(desktop-menu.cmake)
 de_xr_desktop_menu(qimgvr)

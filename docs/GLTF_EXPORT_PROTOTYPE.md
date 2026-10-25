@@ -6,9 +6,8 @@ approximate textured relief. Qt6 remains an explicit opt-in and has no new
 exporter or native model viewer in this change.
 
 Open an image with qimgvr, wait for its SBS rendering to finish,
-and choose **File → Export as glTF...** in DomeD's universal menu. The stereo
-presenter has the same action, including when it is a separate process. Export
-uses that window's current normalized left/right still image. Navigation, edits,
+and choose **File → Export as glTF...** in DomeD's universal menu. Export
+uses the main viewer's current normalized left/right still image. Navigation, edits,
 layout changes and unfinished image loading invalidate the main viewer's prior
 export until the new conversion is ready. Reconstruction and encoding run in a
 background job after taking a snapshot of the selected image.
@@ -105,12 +104,13 @@ the updated prototype is reopened.
 ## Mono file dialogs
 
 The application sets an explicit `qimgvr` default window identity before creating
-any windows. Only the SBS image presenter opts into `org.qimgvr.Sbs`; native
-export/open/save and confirmation dialogs retain the mono identity. This avoids
-FLTK inheriting the first presenter's SBS identity into a later chooser.
+any windows. The main viewer uses `org.qimgvr.Sbs`; native export/open/save
+and confirmation dialogs retain the mono identity. In XR the main window packs
+its controls for both eyes even with depth disabled; on the desktop it stays
+mono unless stereo is explicitly enabled.
 
 Run `scripts/test-xr-file-chooser.py` with `QIMGVR_CHOOSER_EXPORT=1` to verify
-that the private DomeD scene reports an SBS presenter and a mono export chooser,
+that the private DomeD scene reports an SBS surface and a mono export chooser,
 then exercise keyboard input, physical pointer selection and held-Escape close.
 The default test mode checks the ordinary Open chooser.
 
@@ -145,13 +145,14 @@ generic model inspection camera; **Reference image view** restores the export
 camera. Ordinary glTF assets without that metadata start with bounds fitting.
 These camera choices do not repair geometry or invent missing background.
 
-The normal viewer shows a mono 3D viewport. **Stereo → Auto when headset
-connected** additionally opens a native geometry stereo window during DomeD XR
-presentation. **Always (XR or preview)** enables it explicitly, including a
-side-by-side desktop preview. **Off** / **Close stereo view** / Escape hides
-that presenter. Super+W (or the native window close action) on either model
-window closes the viewer and both model surfaces. This renders the model directly from separate eye cameras; it
-never estimates another image depth map or starts a separate OpenXR session.
+The normal viewer shows an interactive mono 3D viewport. **Stereo → Auto when
+headset connected** enables geometry stereo in that same main viewport during
+DomeD XR presentation. **Always (XR or desktop)** enables it explicitly,
+including SBS on a conventional desktop. S toggles stereo; **Off** or Escape
+returns to mono. The selected mode is saved. Fullscreen/maximization applies to
+the same viewer, and Super+W closes it. No separate preview window remains
+behind. Stereo renders the model directly from separate eye cameras; it never
+estimates another image depth map or starts a separate OpenXR session.
 DomeD's existing tracked-eye/window geometry is used for asymmetric projection
 and per-eye cylinder reprojection, with a 64 mm fallback baseline. File dialogs
 keep the mono identity. The monitor polls outside the UI/render thread; headset
@@ -178,3 +179,8 @@ SBS geometry frames and failures. The second starts a private nested DomeD,
 injects head/eye poses and verifies actual differing eye images, head parallax,
 curved-window geometry, and a mono chooser from the SBS model window. These
 checks do not change the active desktop or establish live-headset comfort.
+
+`test-gltf-xr.py` also verifies one persistent main window across model and image
+mono/SBS toggles, fullscreen/maximization, tracked head movement, mono file and
+export dialogs, and held Super+W without closing unrelated XR windows. Set
+`QIMGVR_XR_TEST_GPU=1` for the native Vulkan/DMA-BUF compositor path.

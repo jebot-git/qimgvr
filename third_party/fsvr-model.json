@@ -15,6 +15,7 @@
   },
   "adaptations": [
     "gltf-model.cpp includes use qimgvr third_party paths",
-    "Optional qimgvr stereo-relief camera metadata in Model/gltf-model.cpp; generic glTF geometry decoding is unchanged"
+    "Optional qimgvr stereo-relief camera metadata in Model/gltf-model.cpp; generic glTF geometry decoding is unchanged",
+    "Renderer::clear accepts an all-resources flag so model subwindows release shaders before Wayland GL context teardown"
   ]
 }

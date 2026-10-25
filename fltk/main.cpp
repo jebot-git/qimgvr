@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "packed-frame.h"
 #include "appearance.h"
 #include "canvas.h"
 #include "desktop-menu.h"
@@ -26,11 +27,14 @@ class Viewer : public dx::GpuWindow {
   DesktopMenuBar menu{0, 0, 1000, 30};
   ThumbnailGrid thumbnails{0, 30, 190, 610};
   Canvas canvas{0, 30, 1000, 610};
+  Canvas stereoCanvas{0, 30, 1000, 610};
+  PackedFrame chromeFrame;
+  bool packedMain = false, modelStereoOn = false;
+  const unsigned char *stereoPixels = nullptr;
   std::shared_ptr<qimgvr::ModelCamera> modelCamera =
       std::make_shared<qimgvr::ModelCamera>();
   qimgvr::ModelView modelView{0, 30, 1000, 610, modelCamera};
   fsv::gltf::Loader modelLoader;
-  std::unique_ptr<qimgvr::ModelPresenter> modelPresenter;
   std::unique_ptr<qimgvr_model::DomeMonitor> modelMonitor;
   bool modelFile = false;
   uint64_t modelRevision = 0;
@@ -103,6 +107,7 @@ class Viewer : public dx::GpuWindow {
     canvas.poll();
     thumbnails.poll();
     stereo.pump();
+    updatePresentation();
     gltfExport.poll([this](const std::string &text){message(text);});
     dx::enable_menu(menu,"File/Export as glTF...",exportReady() && !gltfExport.busy());
     if (loading.valid() && loading.wait_for(std::chrono::seconds(0)) ==
@@ -163,8 +168,6 @@ class Viewer : public dx::GpuWindow {
       modelRevision = loaded.revision;
       if (loaded.model != modelView.asset()) {
         modelView.setModel(loaded.model);
-        if (modelPresenter)
-          modelPresenter->setModel(loaded.model);
         if (loaded.model &&
             modelCamera->animation >= int(loaded.model->animations.size()))
           modelCamera->animation = 0;
@@ -201,26 +204,7 @@ class Viewer : public dx::GpuWindow {
       modelCamera->yaw += dt * .18f;
       modelView.redraw();
     }
-    auto mode =
-        modelMonitor ? modelMonitor->snapshot() : qimgvr_model::DomeMode{};
-    bool present = m && (modelStereoMode == "always" ||
-                         (modelStereoMode == "auto" && mode.known && mode.xr &&
-                          mode.stereoSupported));
-    if (present) {
-      if (!modelPresenter)
-        modelPresenter = std::make_unique<qimgvr::ModelPresenter>(
-            modelCamera, [this](const std::string &n) { command(n); });
-      modelPresenter->setModel(m);
-      modelPresenter->presentation = mode;
-      if (!modelPresenter->shown())
-        modelPresenter->show();
-      modelPresenter->redraw();
-      modelView.redraw();
-    } else if (modelPresenter)
-      modelPresenter->hide();
-    auto error = !modelView.failure().empty() ? modelView.failure()
-                 : modelPresenter             ? modelPresenter->failure()
-                                              : std::string();
+    auto error = modelView.failure();
     if (!error.empty() && error != modelNotice) {
       modelNotice = error;
       message(error);
@@ -228,6 +212,40 @@ class Viewer : public dx::GpuWindow {
       modelNotice.clear();
       message("glTF rendering resumed");
     }
+  }
+  void updatePresentation() {
+    auto mode = modelMonitor->snapshot();
+    const auto &pixels = stereo.presentedPixels();
+    bool xr = mode.known && mode.xr && mode.stereoSupported;
+    bool pack = xr || (modelFile ? modelStereoMode == "always" : !pixels.empty());
+    if (packedMain != pack) {
+      packedMain = pack;
+      showThumbnails(showThumbs);
+      canvas.packed = pack;
+      modelView.packed = pack;
+      canvas.redraw(); modelView.redraw();
+    }
+    if (modelFile) {
+      modelView.presentation = mode;
+      modelStereoOn = modelView.asset() && (modelStereoMode == "always" ||
+                          (modelStereoMode == "auto" && xr));
+      modelView.setStereo(modelStereoOn);
+      if (pack) modelView.redraw();
+    } else if (!canvas.video()) {
+      bool present = !pixels.empty();
+      if (present && stereoPixels != pixels.data) {
+        stereoCanvas.setImage(pixels);
+        stereoPixels = pixels.data;
+      }
+      stereoCanvas.packed = pack;
+      stereoCanvas.xrCoordinates = xr;
+      if (present && !stereoCanvas.shown()) {
+        canvas.hide(); stereoCanvas.show();
+      } else if (!present && stereoCanvas.shown()) {
+        stereoCanvas.hide(); canvas.show(); stereoPixels = nullptr;
+      }
+    }
+    if (pack) redraw();
   }
   void sourceChanged() {
     stereo.setSource(canvas.pixels, current.string(), metadata);
@@ -288,6 +306,7 @@ class Viewer : public dx::GpuWindow {
         temp += ".tmp";
         std::ofstream(temp) << Json{
             {"thumbnails", showThumbs},
+            {"stereo_mode", modelStereoMode},
             {"slideshow_seconds",
              slideshow}}.dump(2);
         fs::rename(temp, root);
@@ -296,6 +315,9 @@ class Viewer : public dx::GpuWindow {
         Json value;
         f >> value;
         showThumbs = value.value("thumbnails", false);
+        auto savedMode = value.value("stereo_mode", std::string("auto"));
+        if (savedMode == "auto" || savedMode == "always" || savedMode == "off")
+          setStereo(savedMode);
       }
     } catch (...) {
     }
@@ -303,8 +325,11 @@ class Viewer : public dx::GpuWindow {
 
 public:
   Viewer() : dx::GpuWindow(1000, 700, "qimgvr — FLTK OpenGL") {
-    xclass("qimgvr");
+    xclass("org.qimgvr.Sbs");
+    modelMonitor = std::make_unique<qimgvr_model::DomeMonitor>();
     modelView.hide();
+    stereoCanvas.hide();
+    stereoCanvas.stereo = true;
     for (auto item : std::vector<std::pair<const char *, int>>{
              {"File/Open...", FL_CTRL + 'o'},
              {"File/Save as...", FL_CTRL + FL_SHIFT + 's'},
@@ -329,7 +354,7 @@ public:
              {"View/Fullscreen", FL_F + 11},
              {"Stereo/Off", 0},
              {"Stereo/Auto when headset connected", 0},
-             {"Stereo/Always (XR or preview)", 's'},
+             {"Stereo/Always (XR or desktop)", 's'},
              {"Stereo/Input: Auto", 0},
              {"Stereo/Input: 2D", 0},
              {"Stereo/Input: Full SBS", 0},
@@ -385,18 +410,28 @@ public:
   }
   void show() override {
     dx::GpuWindow::show();
+    // Wayland cannot create a GL subsurface before its parent is mapped.
+    // Command-line model/image loading happens before this show().
+    if (modelFile) modelView.show();
+    else if (!stereoCanvas.visible()) canvas.show();
     if (!Fl::has_timeout(tick, this))
       Fl::add_timeout(.025, tick, this);
   }
   void hide() override {
     // A close may dispatch nested FLTK events while native GL surfaces are
-    // destroyed. Stop polling before hiding either window, so no pending
-    // model load or XR update can recreate the presenter during teardown.
+    // destroyed. Stop polling first so no model or stereo update can run
+    // during teardown.
     Fl::remove_timeout(tick, this);
-    if(modelPresenter)modelPresenter->hide();
     dx::GpuWindow::hide();
   }
+  void draw() override {
+    if (!context_valid()) chromeFrame.abandon();
+    damage(FL_DAMAGE_ALL);
+    dx::GpuWindow::draw();
+    if (packedMain) chromeFrame.pack(pixel_w(), pixel_h());
+  }
   ~Viewer() {
+    if (context()) { make_current(); chromeFrame.release(); }
     Fl::remove_timeout(tick, this);
     if (loading.valid())
       loading.wait();
@@ -413,9 +448,15 @@ public:
     dx::GpuWindow::resize(x, y, w, h);
     const int top = menu.universal() ? 0 : 30;
     menu.resize(0, 0, w, top);
-    thumbnails.resize(0, top, 190, std::max(1, h - top - 60));
-    canvas.resize(showThumbs ? 190 : 0, top,
-                  std::max(1, w - (showThumbs ? 190 : 0)), std::max(1, h - top - 60));
+    thumbnails.horizontal = packedMain;
+    int strip = showThumbs && packedMain ? 105 : 0;
+    thumbnails.resize(0, top, packedMain ? w : 190,
+                      packedMain ? 105 : std::max(1, h - top - 60));
+    thumbnails.setSelected(int(index));
+    bool sidebar = showThumbs && !packedMain;
+    canvas.resize(sidebar ? 190 : 0, top + strip,
+                  std::max(1, w - (sidebar ? 190 : 0)), std::max(1, h - top - strip - 60));
+    stereoCanvas.resize(canvas.x(),canvas.y(),canvas.w(),canvas.h());
     seek.resize(10, h - 55, w - 20, 20);
     modelView.resize(canvas.x(),canvas.y(),canvas.w(),canvas.h());
     status.resize(10, h - 30, w - 20, 25);
@@ -440,6 +481,8 @@ public:
       ++generation;
       modelFile = fsv::gltf::supported(current);
       modelNotice.clear();
+      stereoCanvas.hide();
+      stereoPixels = nullptr;
       if (modelFile) {
         pending.reset();
         canvas.setImage({});
@@ -454,10 +497,6 @@ public:
         modelCamera->seconds = 0;
         modelCamera->animation = 0;
         modelView.setModel({});
-        if (modelPresenter)
-          modelPresenter->setModel({});
-        if (!modelMonitor)
-          modelMonitor = std::make_unique<qimgvr_model::DomeMonitor>();
         modelLoader.open(current);
         modelRevision = 0;
         modelTick = std::chrono::steady_clock::now();
@@ -469,11 +508,6 @@ public:
         modelView.hide();
         canvas.show();
         resizable(canvas);
-        if (modelPresenter) {
-          modelPresenter->hide();
-          modelPresenter->setModel({});
-        }
-        modelMonitor.reset();
       }
       if (modelFile) {
         // Model loading is asynchronous and never enters the image/SBS worker.
@@ -512,6 +546,10 @@ public:
     size_t next = (index + files.size() + delta) % files.size();
     load(files[next]);
   }
+  bool stereoEnabled() const {
+    return modelFile ? modelStereoOn || modelStereoMode == "always"
+                     : stereo.currentMode() == "always" || !stereo.presentedPixels().empty();
+  }
   void command(const std::string &name) {
     if (name == "Open...")
       open();
@@ -520,13 +558,14 @@ public:
     else if (name == "Previous")
       navigate(-1);
     else if (name == "Fit") {
-      if(modelFile)modelView.reset();else canvas.resetView();
+      if(modelFile)modelView.reset();else { canvas.resetView(); stereoCanvas.resetView(); }
     }
     else if (name == "Actual pixels") {
-      canvas.fit = false;
-      canvas.zoom = 1;
-      canvas.panX = canvas.panY = 0;
-      canvas.redraw();
+      auto &view = stereoCanvas.shown() ? stereoCanvas : canvas;
+      view.fit = false;
+      view.zoom = 1;
+      view.panX = view.panY = 0;
+      view.redraw();
     } else if (name == "Thumbnails")
       showThumbnails(!showThumbs);
     else if (name == "Fullscreen") {
@@ -562,6 +601,7 @@ public:
       remember();
       canvas.flip(name == "Flip horizontally");
     } else if (name == "Crop selection") {
+      setStereo("off");
       canvas.cropMode = true;
       message("Drag a rectangle over the image to crop.");
     } else if (name == "Undo") {
@@ -622,8 +662,8 @@ public:
       setStereo("off");
     else if (name == "Auto when headset connected")
       setStereo("auto");
-    else if (name == "Always (XR or preview)")
-      setStereo(modelFile?(modelStereoMode=="always"?"off":"always"):(stereo.active()?"off":"always"));
+    else if (name == "Always (XR or desktop)")
+      setStereo(stereoEnabled() ? "off" : "always");
     else if (name == "Input: Auto")
       stereo.setLayout("auto");
     else if (name == "Input: 2D")
@@ -648,6 +688,10 @@ public:
       hide();
   }
   int handle(int e) override {
+    if ((e == FL_KEYDOWN || e == FL_SHORTCUT) && Fl::event_key() == FL_Escape &&
+        stereoEnabled()) {
+      setStereo("off"); return 1;
+    }
     if (e == FL_PASTE) {
       std::string value(Fl::event_text(), Fl::event_length());
       if (value.rfind("file://", 0) == 0) {
@@ -694,13 +738,14 @@ public:
           {"images", m ? m->images.size() : 0},
           {"animations", m ? m->animations.size() : 0},
           {"frames", modelView.frames},
-          {"stereoFrames", modelPresenter ? modelPresenter->stereoFrames : 0},
+          {"stereoFrames", modelView.stereoFrames},
           {"referenceView",
            m && m->stereoReference.has_value() &&
                modelCamera->reference}}.dump(2);
     } else {
-      canvas.flush();
-      canvas.snapshot(output.string() + ".canvas.ppm");
+      auto &visibleCanvas = stereoCanvas.shown() ? stereoCanvas : canvas;
+      visibleCanvas.flush();
+      visibleCanvas.snapshot(output.string() + ".canvas.ppm");
     }
     dx::screenshot(*this, output.c_str());
     return !modelFile || (modelView.asset() && modelView.failure().empty() &&
@@ -708,10 +753,9 @@ public:
   }
 };
 int main(int argc, char **argv) try {
-  // SBS is an opt-in identity for the image presenter only. FLTK otherwise
-  // inherits the first window's class into its file and confirmation dialogs.
+  // Main-window stereo must never be inherited by native dialogs.
   Fl_Window::default_xclass("qimgvr");
-  std::string presenter, title = "qimgvr — SBS image", sbs = "auto",
+  std::string presenter, title = "qimgvr — SBS image", sbs,
                          inputLayout = "auto";
   fs::path file, smoke, exportGltf;
   bool dome = false;
@@ -783,7 +827,7 @@ int main(int argc, char **argv) try {
     else if (argv[i][0] != '-')
       file = argv[i];
   }
-  if (sbs != "auto" && sbs != "always" && sbs != "off")
+  if (!sbs.empty() && sbs != "auto" && sbs != "always" && sbs != "off")
     throw std::invalid_argument("--sbs requires auto, always or off");
   if (inputLayout != "auto" && inputLayout != "2d" &&
       inputLayout != "full-sbs" && inputLayout != "half-sbs")
@@ -813,6 +857,7 @@ int main(int argc, char **argv) try {
     viewer.copy_label(title.c_str());
     if (dome) {
       viewer.xclass("org.qimgvr.Sbs");
+      viewer.xrCoordinates = true;
       viewer.border(0);
     }
     viewer.watch(presenter);
@@ -829,7 +874,7 @@ int main(int argc, char **argv) try {
   Fl::lock();
   Viewer viewer;
   viewer.setInputLayout(inputLayout);
-  viewer.setStereo(sbs);
+  if (!sbs.empty()) viewer.setStereo(sbs);
   if (!file.empty())
     viewer.load(file);
   dx::style(&viewer);

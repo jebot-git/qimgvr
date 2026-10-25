@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
-#include "desktop-menu.h"
+#include "packed-frame.h"
 #include "model/domed.h"
 #include "model/gltf-render.h"
 #include "model/model-loader.h"
@@ -29,13 +29,18 @@ class ModelView : public Fl_Gl_Window {
   int downX = 0, downY = 0, button = 0;
   bool stereo = false;
   void drawStereo();
+  void releaseGpu();
+  PackedFrame monoFrame;
 
 public:
+  bool packed = false;
+  void setStereo(bool value) { if (stereo != value) { stereo = value; redraw(); } }
   qimgvr_model::DomeMode presentation;
   size_t frames = 0, stereoFrames = 0;
   ModelView(int, int, int, int, std::shared_ptr<ModelCamera>,
             bool stereo = false);
   ~ModelView();
+  void hide() override;
   void setModel(std::shared_ptr<const fsv::gltf::Model>);
   const std::shared_ptr<const fsv::gltf::Model> &asset() const { return model; }
   const std::string &failure() const { return error; }
@@ -43,15 +48,5 @@ public:
   void draw() override;
   int handle(int) override;
   bool snapshot(const std::filesystem::path &);
-};
-class ModelPresenter : public ModelView {
-  DesktopMenuBar menu{0, 0, 0, 0};
-  std::unique_ptr<DesktopMenu> desktop;
-  std::function<void(const std::string &)> command;
-
-public:
-  ModelPresenter(std::shared_ptr<ModelCamera>,
-                 std::function<void(const std::string &)>);
-  int handle(int) override;
 };
 } // namespace qimgvr

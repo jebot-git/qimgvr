@@ -131,11 +131,11 @@ class StereoController {
   std::filesystem::path temporary;
   cv::Mat source;
   Json metadata;
-  std::string sourceName, mode = "off", layout = "auto";
+  std::string sourceName, mode = "auto", layout = "auto";
   uint64_t generation = 0, completed = 0, inflight = 0, outputGeneration = 0;
   bool busy = false, hidePending = false, connected = false;
   std::filesystem::path currentOutput;
-  std::unique_ptr<StereoWindow> preview;
+  cv::Mat outputPixels, emptyPixels;
   std::unique_ptr<StereoControls> controls;
   std::chrono::steady_clock::time_point probe{};
   void start();
@@ -150,6 +150,7 @@ public:
   void setMode(std::string);
   void setLayout(std::string);
   void pump();
+  const cv::Mat &presentedPixels() const { return canExport() && (connected || mode == "always") ? outputPixels : emptyPixels; }
   bool active() const { return mode != "off"; }
   bool canExport() const { return active() && outputGeneration==generation && !currentOutput.empty(); }
   cv::Mat exportPixels() const {
