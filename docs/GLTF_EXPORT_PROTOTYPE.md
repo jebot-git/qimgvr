@@ -149,7 +149,8 @@ The normal viewer shows a mono 3D viewport. **Stereo → Auto when headset
 connected** additionally opens a native geometry stereo window during DomeD XR
 presentation. **Always (XR or preview)** enables it explicitly, including a
 side-by-side desktop preview. **Off** / **Close stereo view** / Escape hides
-that presenter. This renders the model directly from separate eye cameras; it
+that presenter. Super+W (or the native window close action) on either model
+window closes the viewer and both model surfaces. This renders the model directly from separate eye cameras; it
 never estimates another image depth map or starts a separate OpenXR session.
 DomeD's existing tracked-eye/window geometry is used for asymmetric projection
 and per-eye cylinder reprojection, with a 64 mm fallback baseline. File dialogs

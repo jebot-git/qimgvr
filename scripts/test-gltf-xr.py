@@ -25,6 +25,9 @@ with tempfile.TemporaryDirectory(prefix='qimgvr-model-xr-') as directory:
  with os.fdopen(rd)as stream:screen=':'+stream.readline().strip()
  with socket.socket()as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
  env={**os.environ,'DISPLAY':screen,'XDG_RUNTIME_DIR':directory,'XDG_CONFIG_HOME':directory+'/config','XDG_CACHE_HOME':directory+'/cache','XDG_DATA_HOME':directory+'/data','XDG_STATE_HOME':directory+'/state','XDG_CURRENT_DESKTOP':'Dome','DOME_PREVIEW_PORT':str(port),'DOME_LOGIN_SESSION':'0','DOME_START_XR':'0','DOME_START_XWAYLAND':'0','DOME_SESSION_RESTORE':'0','DOME_APPEARANCE_SERVICE':'0','DOME_RENDERER':'gles','LIBGL_ALWAYS_SOFTWARE':'1','FLTK_BACKEND':'wayland','QIMGV_SBS_PYTHON':'/nonexistent/no-arc-worker','QIMGVR_SBS_TRACE':'1','LD_LIBRARY_PATH':'/opt/fltk-vr/toolkit/lib:/opt/fltk-vr/lib:/opt/fltk-vr/lib/bitmap','DBUS_SYSTEM_BUS_ADDRESS':'unix:path=/nonexistent/qimgvr-model-test-system-bus'}
+ if os.environ.get('QIMGVR_XR_TEST_GPU')=='1':
+  env['DOME_RENDERER']='vulkan'
+  env.pop('LIBGL_ALWAYS_SOFTWARE',None)
  for key in ['WAYLAND_DISPLAY','WAYLAND_SOCKET']:env.pop(key,None)
  for service in ['TRAY','KDECONNECT','KWALLET','POLKIT','IME']:env['DOME_START_'+service]='0'
  def start(args,name,environment=env):
@@ -76,7 +79,55 @@ with tempfile.TemporaryDirectory(prefix='qimgvr-model-xr-') as directory:
   xd=display.Display(screen);host=wait(lambda:next((w for w in xd.screen().root.query_tree().children if str(w.get_wm_name()or'').startswith('Dome')),None));host.set_input_focus(X.RevertToParent,X.CurrentTime);xd.sync()
   code=xd.keysym_to_keycode(XK.string_to_keysym('Escape'));xtest.fake_input(xd,X.KeyPress,code);xtest.fake_input(xd,X.KeyRelease,code);xd.sync()
   wait(lambda:not any(w['id']==dialog['id'] for w in state()['windows']));assert app.poll()is None
-  print('PASS native Wayland geometry stereo, tracked-eye cylinder projection, head parallax, mono model-file chooser and clean modal close')
+  # Keep an unrelated native window alive while closing each model window.
+  witness=start([binary,'--no-sbs',fixture],'witness',{**env,'WAYLAND_DISPLAY':record.name.removesuffix('.dome-session.json'),'XDG_CONFIG_HOME':directory+'/witness-config'})
+  witnessWindow=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==witness.pid and w['app_id']=='qimgvr'),None))
+  def survives():
+   assert witness.poll() is None
+   assert any(w['id']==witnessWindow['id'] and w['xr_visible'] and not w['minimized'] for w in state()['windows'])
+   with urllib.request.urlopen(base+'/api/xr-frame/'+str(witnessWindow['id']),timeout=3)as f:
+    pixels=f.read();assert len(pixels)>0
+   return True
+  def closeWithSuperW(id):
+   request('action',{'op':'focus','id':id})
+   wait(lambda:state()['focused']==id)
+   time.sleep(.2) # allow the compositor to apply native keyboard focus
+   superKey=xd.keysym_to_keycode(XK.string_to_keysym('Super_L'))
+   wKey=xd.keysym_to_keycode(XK.string_to_keysym('w'))
+   xtest.fake_input(xd,X.KeyPress,superKey);xtest.fake_input(xd,X.KeyPress,wKey);xd.sync()
+   # Keep the physical chord held across the focus change. Repeated presses
+   # must not close the next application while the original key is still down.
+   for _ in range(6):
+    time.sleep(.1);xtest.fake_input(xd,X.KeyPress,wKey);xd.sync()
+   xtest.fake_input(xd,X.KeyRelease,wKey);xtest.fake_input(xd,X.KeyRelease,superKey);xd.sync()
+  request('action',{'op':'focus','id':window['id']})
+  wait(lambda:state()['focused']==window['id'])
+  time.sleep(.2)
+  code=xd.keysym_to_keycode(XK.string_to_keysym('Escape'))
+  xtest.fake_input(xd,X.KeyPress,code);xtest.fake_input(xd,X.KeyRelease,code);xd.sync()
+  wait(lambda:not any(w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs' for w in state()['windows']))
+  time.sleep(.3);assert app.poll() is None;wait(survives)
+  # Re-enable stereo, then close its XR document window with a real compositor
+  # close request while model rendering and its polling timer are active.
+  layout=dbus(service,'/org/de_xr/FLTK/Menu1','com.canonical.dbusmenu.GetLayout','0','-1','[]')
+  toggle=re.search(r"\((\d+), \{'label': <'Always \(XR or preview\)'>",layout)[1]
+  dbus(service,'/org/de_xr/FLTK/Menu1','com.canonical.dbusmenu.Event',toggle,'clicked','<0>','0')
+  reopened=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs'),None))
+  closeWithSuperW(reopened['id'])
+  wait(lambda:app.poll() is not None)
+  assert app.returncode==0,('Abnormal model-close exit',app.returncode)
+  wait(lambda:not any(w.get('client_pid')==app.pid for w in state()['windows']))
+  wait(survives)
+  # A fresh viewer's main-window close must also remove its stereo surface.
+  app=start([binary,fixture],'main-close',{**env,'WAYLAND_DISPLAY':record.name.removesuffix('.dome-session.json'),'XDG_CONFIG_HOME':directory+'/main-close-config'})
+  main=wait(lambda:next((w for w in state()['windows'] if w.get('client_pid')==app.pid and w['app_id']=='qimgvr'),None))
+  wait(lambda:any(w.get('client_pid')==app.pid and w['app_id']=='org.qimgvr.Sbs' for w in state()['windows']))
+  closeWithSuperW(main['id'])
+  wait(lambda:app.poll() is not None)
+  assert app.returncode==0,('Abnormal main-close exit',app.returncode)
+  wait(lambda:not any(w.get('client_pid')==app.pid for w in state()['windows']))
+  wait(survives)
+  print('PASS native Wayland geometry stereo, tracked-eye cylinder projection, head parallax, mono model-file chooser and Super+W closes preserve unrelated XR windows')
  finally:
   stop.set()
   for p in reversed(children):

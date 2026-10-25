@@ -57,8 +57,12 @@ class Viewer : public dx::GpuWindow {
   std::chrono::steady_clock::time_point slide{};
   double slideshow = 0;
   static void tick(void *p) {
-    ((Viewer *)p)->poll();
-    Fl::repeat_timeout(.025, tick, p);
+    auto self = static_cast<Viewer *>(p);
+    if (!self->shown())
+      return;
+    self->poll();
+    if (self->shown())
+      Fl::repeat_timeout(.025, tick, p);
   }
   static void action(Fl_Widget *w, void *data) {
     auto self = (Viewer *)data;
@@ -378,9 +382,17 @@ public:
     showThumbnails(showThumbs);
     menu.layoutChanged = [this] { resize(x(), y(), w(), h()); };
     desktop = std::make_unique<DesktopMenu>(*this, menu);
-    Fl::add_timeout(.025, tick, this);
+  }
+  void show() override {
+    dx::GpuWindow::show();
+    if (!Fl::has_timeout(tick, this))
+      Fl::add_timeout(.025, tick, this);
   }
   void hide() override {
+    // A close may dispatch nested FLTK events while native GL surfaces are
+    // destroyed. Stop polling before hiding either window, so no pending
+    // model load or XR update can recreate the presenter during teardown.
+    Fl::remove_timeout(tick, this);
     if(modelPresenter)modelPresenter->hide();
     dx::GpuWindow::hide();
   }

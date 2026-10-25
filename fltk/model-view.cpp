@@ -403,7 +403,11 @@ ModelPresenter::ModelPresenter(
   desktop = std::make_unique<DesktopMenu>(*this, menu);
   this->callback(
       [](Fl_Widget *, void *p) {
-        static_cast<ModelPresenter *>(p)->command("Close stereo view");
+        // The presenter is the model's XR document window. A native window
+        // close must close its owner too, rather than leave a loaded mono
+        // window behind for the launcher to reactivate on another workspace.
+        // Escape and the explicit stereo-only menu action still disable stereo.
+        static_cast<ModelPresenter *>(p)->command("Quit");
       },
       this);
 }
