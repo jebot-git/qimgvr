@@ -175,6 +175,7 @@ void StereoController::response(const Json &object) {
     if (!currentOutput.empty() && currentOutput != output)
       std::filesystem::remove(currentOutput, ec);
     currentOutput = output;
+    outputGeneration = generation;
     if (connected) {
       char exe[PATH_MAX];
       auto n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
@@ -196,6 +197,7 @@ void StereoController::response(const Json &object) {
         else if (commandRequested)
           commandRequested(value);
       };
+      preview->exportSourceName=sourceName;
       preview->setImage(readImage(output).rgba);
       preview->show();
       if (message)
@@ -216,6 +218,7 @@ void StereoController::response(const Json &object) {
         else if (commandRequested)
           commandRequested(value);
       };
+      preview->exportSourceName=sourceName;
       preview->setImage(readImage(currentOutput).rgba);
       preview->show();
     }

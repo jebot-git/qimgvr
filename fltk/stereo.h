@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include "canvas.h"
+#include "gltf-export-ui.h"
 #include "desktop-menu.h"
 #include "json-process.h"
 #include "stereo-controls.h"
@@ -11,13 +12,18 @@ class StereoWindow : public Canvas {
   DesktopMenuBar menu{0, 0, 0, 0};
   std::unique_ptr<DesktopMenu> desktop;
   std::string endpoint;
+  GltfExportJob gltfExport;
   static void action(Fl_Widget *widget, void *data) {
     auto item = ((Fl_Menu_ *)widget)->mvalue();
     if (item)
       ((StereoWindow *)data)->command(item->label());
   }
   void command(const std::string &name) {
-    if (name == "Fit")
+    if (name == "Export as glTF...") {
+      try { gltfExport.choose(pixels,!exportSourceName.empty() ? exportSourceName : watched.empty() ? "stereo-image.png" : watched.string(),
+                             [this](const std::string &text){copy_label(("qimgvr — "+text).c_str());}); }
+      catch(const std::exception &e) {fl_alert("%s",e.what());}
+    } else if (name == "Fit")
       resetView();
     else if (name == "Actual pixels") {
       fit = false;
@@ -42,6 +48,8 @@ class StereoWindow : public Canvas {
   std::filesystem::file_time_type modified{};
   static void tick(void *p) {
     auto s = (StereoWindow *)p;
+    s->gltfExport.poll([s](const std::string &text){s->copy_label(("qimgvr — "+text).c_str());});
+    dx::enable_menu(s->menu,"File/Export as glTF...",!s->pixels.empty() && !s->gltfExport.busy());
     try {
       if (!s->watched.empty()) {
         if (!std::filesystem::exists(s->watched.parent_path())) {
@@ -64,12 +72,14 @@ class StereoWindow : public Canvas {
 
 public:
   std::function<void(const std::string &)> ownerCommand;
+  std::string exportSourceName;
   StereoWindow() : Canvas(0, 0, 1280, 720) {
     if (auto value = getenv("QIMGVR_SBS_CONTROL"))
       endpoint = value;
     menu.hide();
     menu.add("File/Previous", FL_Left, action, this);
     menu.add("File/Next", FL_Right, action, this);
+    menu.add("File/Export as glTF...", 0, action, this);
     menu.add("File/Close stereo view", FL_Escape, action, this);
     menu.add("View/Fit", 'f', action, this);
     menu.add("View/Actual pixels", '1', action, this);
@@ -122,7 +132,7 @@ class StereoController {
   cv::Mat source;
   Json metadata;
   std::string sourceName, mode = "off", layout = "auto";
-  uint64_t generation = 0, completed = 0, inflight = 0;
+  uint64_t generation = 0, completed = 0, inflight = 0, outputGeneration = 0;
   bool busy = false, hidePending = false, connected = false;
   std::filesystem::path currentOutput;
   std::unique_ptr<StereoWindow> preview;
@@ -141,5 +151,10 @@ public:
   void setLayout(std::string);
   void pump();
   bool active() const { return mode != "off"; }
+  bool canExport() const { return active() && outputGeneration==generation && !currentOutput.empty(); }
+  cv::Mat exportPixels() const {
+    if(!canExport()) throw std::runtime_error("Wait for the current stereo image to finish rendering");
+    return readImage(currentOutput).rgba;
+  }
   std::string currentMode() const { return mode; }
 };

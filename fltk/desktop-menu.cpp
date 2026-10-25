@@ -350,8 +350,24 @@ struct DesktopMenu::Impl {
         !it->second.children.empty())
       return;
     auto item = it->second.item;
-    if (usable(id))
-      menu.picked(item);
+    if (!usable(id)) return;
+    // Modal callbacks must run outside GLib's DBus dispatch. Returning the
+    // method reply first also leaves the universal menu responsive while a
+    // native chooser runs its nested FLTK event loop.
+    char path[4096];
+    if (menu.item_pathname(path, sizeof(path), item)) return;
+    struct Pending {
+      Fl_Widget_Tracker tracker;
+      std::string path;
+      Pending(Fl_Widget *widget, std::string value) : tracker(widget), path(std::move(value)) {}
+    };
+    Fl::add_timeout(0, [](void *data) {
+      std::unique_ptr<Pending> pending(static_cast<Pending *>(data));
+      if (pending->tracker.deleted()) return;
+      auto bar=static_cast<DesktopMenuBar *>(pending->tracker.widget());
+      auto selected=bar->find_item(pending->path.c_str());
+      if (selected && selected->active() && selected->visible()) bar->picked(selected);
+    }, new Pending(&menu,path));
   }
   static GVariant *property(GDBusConnection *, const gchar *, const gchar *,
                             const gchar *, const gchar *name, GError **,

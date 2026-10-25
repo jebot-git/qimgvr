@@ -4,6 +4,7 @@
 #include "desktop-menu.h"
 #include "gpu-window.h"
 #include "image.h"
+#include "model-view.h"
 #include "stereo.h"
 #include "thumbnails.h"
 #include <FL/Fl_Box.H>
@@ -25,6 +26,17 @@ class Viewer : public dx::GpuWindow {
   DesktopMenuBar menu{0, 0, 1000, 30};
   ThumbnailGrid thumbnails{0, 30, 190, 610};
   Canvas canvas{0, 30, 1000, 610};
+  std::shared_ptr<qimgvr::ModelCamera> modelCamera =
+      std::make_shared<qimgvr::ModelCamera>();
+  qimgvr::ModelView modelView{0, 30, 1000, 610, modelCamera};
+  fsv::gltf::Loader modelLoader;
+  std::unique_ptr<qimgvr::ModelPresenter> modelPresenter;
+  std::unique_ptr<qimgvr_model::DomeMonitor> modelMonitor;
+  bool modelFile = false;
+  uint64_t modelRevision = 0;
+  std::string modelStereoMode = "auto", modelNotice;
+  std::chrono::steady_clock::time_point modelTick =
+      std::chrono::steady_clock::now();
   Fl_Value_Slider seek{10, 645, 980, 20};
   Fl_Box status{10, 670, 980, 25};
   std::unique_ptr<DesktopMenu> desktop;
@@ -38,6 +50,8 @@ class Viewer : public dx::GpuWindow {
   uint64_t generation = 0, inflight = 0;
   std::optional<fs::path> pending;
   StereoController stereo;
+  GltfExportJob gltfExport;
+  std::unique_ptr<Fl_Native_File_Chooser> openChooser, imageSaveChooser;
   bool edited = false, showThumbs = false;
   std::vector<cv::Mat> undo;
   std::chrono::steady_clock::time_point slide{};
@@ -67,20 +81,31 @@ class Viewer : public dx::GpuWindow {
     bool image = !canvas.pixels.empty();
     dx::enable_menu(menu, "Edit", image);
     dx::enable_menu(menu, "File/Save as...", image);
-    dx::enable_menu(menu, "File/Metadata", image);
+    dx::enable_menu(menu, "File/Metadata", image || bool(modelView.asset()));
+    dx::enable_menu(menu, "File/Play in mpvr", !modelFile && !current.empty());
+    dx::enable_menu(menu, "Model", modelFile && bool(modelView.asset()));
+    for(auto name:{"Model/Reset model camera","Model/Play or pause animation","Model/Next animation","Model/Orbit automatically","Model/Reference image view","Model/Fit model bounds"})
+      dx::enable_menu(menu,name,modelFile && bool(modelView.asset()));
+    dx::enable_menu(menu, "Model/Reference image view", modelView.asset() && modelView.asset()->stereoReference.has_value());
+    dx::enable_menu(menu, "View/Actual pixels", !modelFile);
+    for(auto name:{"Stereo/Input: Auto","Stereo/Input: 2D","Stereo/Input: Full SBS","Stereo/Input: Half SBS"})
+      dx::enable_menu(menu,name,!modelFile);
     dx::enable_menu(menu, "Edit/Undo", !undo.empty());
     dx::enable_menu(menu, "Playback", canvas.video());
     dx::enable_menu(menu, "View/Next", files.size() > 1);
     dx::enable_menu(menu, "View/Previous", files.size() > 1);
 
+    pollModel();
     canvas.poll();
     thumbnails.poll();
     stereo.pump();
+    gltfExport.poll([this](const std::string &text){message(text);});
+    dx::enable_menu(menu,"File/Export as glTF...",exportReady() && !gltfExport.busy());
     if (loading.valid() && loading.wait_for(std::chrono::seconds(0)) ==
                                std::future_status::ready) {
       try {
         auto result = loading.get();
-        if (inflight == generation && !pending) {
+        if (inflight == generation && !pending && !modelFile) {
           original = result.rgba;
           canvas.setImage(original);
           metadata = result.metadata;
@@ -102,7 +127,11 @@ class Viewer : public dx::GpuWindow {
         startRead(p);
       }
     }
-    if (canvas.video()) {
+    if(modelFile && modelView.asset() && !modelView.asset()->animations.empty()) {
+      auto &clips=modelView.asset()->animations;
+      seek.activate();seek.range(0,clips[modelCamera->animation].duration);
+      if(Fl::pushed()!=&seek)seek.value(modelCamera->seconds);
+    } else if (canvas.video()) {
       double duration = canvas.duration();
       if (duration > 0) {
         seek.activate();
@@ -116,6 +145,84 @@ class Viewer : public dx::GpuWindow {
                              std::chrono::duration<double>(slideshow)) {
       slide = std::chrono::steady_clock::now();
       navigate(1);
+    }
+  }
+  void pollModel() {
+    if (!modelFile)
+      return;
+    auto now = std::chrono::steady_clock::now();
+    double dt = std::clamp(
+        std::chrono::duration<double>(now - modelTick).count(), 0., .1);
+    modelTick = now;
+    auto loaded = modelLoader.snapshot();
+    if (loaded.revision != modelRevision) {
+      modelRevision = loaded.revision;
+      if (loaded.model != modelView.asset()) {
+        modelView.setModel(loaded.model);
+        if (modelPresenter)
+          modelPresenter->setModel(loaded.model);
+        if (loaded.model &&
+            modelCamera->animation >= int(loaded.model->animations.size()))
+          modelCamera->animation = 0;
+      }
+      if (!loaded.error.empty()) {
+        message(loaded.error);
+        description = loaded.error;
+      } else if (loaded.model) {
+        auto m = loaded.model;
+        description = Json{
+            {"format", "glTF 2.0"},
+            {"source", current.string()},
+            {"triangles", m->triangleCount()},
+            {"meshes", m->meshes.size()},
+            {"materials", m->materials.size()},
+            {"images", m->images.size()},
+            {"animations", m->animations.size()},
+            {"warnings",
+             m->warnings}}.dump(2);
+        message(current.filename().string() + " · " +
+                std::to_string(m->triangleCount()) +
+                " triangles · Drag: orbit · Shift/middle: pan · Wheel: zoom · "
+                "R: reset");
+      }
+    }
+    auto m = modelView.asset();
+    if (m && modelCamera->playing && !m->animations.empty()) {
+      auto duration = m->animations[modelCamera->animation].duration;
+      modelCamera->seconds =
+          duration > 0 ? std::fmod(modelCamera->seconds + dt, duration) : 0;
+      modelView.redraw();
+    }
+    if (m && modelCamera->orbit) {
+      modelCamera->yaw += dt * .18f;
+      modelView.redraw();
+    }
+    auto mode =
+        modelMonitor ? modelMonitor->snapshot() : qimgvr_model::DomeMode{};
+    bool present = m && (modelStereoMode == "always" ||
+                         (modelStereoMode == "auto" && mode.known && mode.xr &&
+                          mode.stereoSupported));
+    if (present) {
+      if (!modelPresenter)
+        modelPresenter = std::make_unique<qimgvr::ModelPresenter>(
+            modelCamera, [this](const std::string &n) { command(n); });
+      modelPresenter->setModel(m);
+      modelPresenter->presentation = mode;
+      if (!modelPresenter->shown())
+        modelPresenter->show();
+      modelPresenter->redraw();
+      modelView.redraw();
+    } else if (modelPresenter)
+      modelPresenter->hide();
+    auto error = !modelView.failure().empty() ? modelView.failure()
+                 : modelPresenter             ? modelPresenter->failure()
+                                              : std::string();
+    if (!error.empty() && error != modelNotice) {
+      modelNotice = error;
+      message(error);
+    } else if (error.empty() && !modelNotice.empty()) {
+      modelNotice.clear();
+      message("glTF rendering resumed");
     }
   }
   void sourceChanged() {
@@ -135,10 +242,14 @@ class Viewer : public dx::GpuWindow {
       undo.clear();
     undo.push_back(canvas.pixels.clone());
   }
+  bool exportReady() const {
+    return !modelFile && !loading.valid() && !pending.has_value() && !canvas.video() && stereo.canExport();
+  }
   void save() {
     if (canvas.pixels.empty())
       return;
-    Fl_Native_File_Chooser chooser;
+    if(!imageSaveChooser) imageSaveChooser=std::make_unique<Fl_Native_File_Chooser>();
+    auto &chooser=*imageSaveChooser;
     chooser.title("Save edited image as");
     chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
     chooser.options(Fl_Native_File_Chooser::SAVEAS_CONFIRM);
@@ -189,9 +300,11 @@ class Viewer : public dx::GpuWindow {
 public:
   Viewer() : dx::GpuWindow(1000, 700, "qimgvr — FLTK OpenGL") {
     xclass("qimgvr");
+    modelView.hide();
     for (auto item : std::vector<std::pair<const char *, int>>{
              {"File/Open...", FL_CTRL + 'o'},
              {"File/Save as...", FL_CTRL + FL_SHIFT + 's'},
+             {"File/Export as glTF...", 0},
              {"File/Metadata", 'i'},
              {"File/Play in mpvr", 0},
              {"File/Quit", FL_CTRL + 'q'},
@@ -217,6 +330,12 @@ public:
              {"Stereo/Input: 2D", 0},
              {"Stereo/Input: Full SBS", 0},
              {"Stereo/Input: Half SBS", 0},
+             {"Model/Reset model camera", 'r'},
+             {"Model/Play or pause animation", ' '},
+             {"Model/Next animation", 0},
+             {"Model/Reference image view", 0},
+             {"Model/Fit model bounds", 0},
+             {"Model/Orbit automatically", 0},
              {"Playback/Play or pause", ' '},
              {"Playback/Seek backward", FL_ALT + FL_Left},
              {"Playback/Seek forward", FL_ALT + FL_Right},
@@ -232,6 +351,7 @@ public:
     seek.callback(
         [](Fl_Widget *, void *p) {
           auto self = (Viewer *)p;
+          if(self->modelFile){self->modelCamera->seconds=self->seek.value();self->modelView.redraw();return;}
           self->canvas.command(
               {"seek", std::to_string(self->seek.value()), "absolute"});
         },
@@ -253,12 +373,16 @@ public:
         load(files[row]);
     };
     stereo.commandRequested = [this](const std::string &value) { command(value); };
-    stereo.message = [this](const std::string &value) { message(value); };
+    stereo.message = [this](const std::string &value) { if(!modelFile)message(value); };
     settings(false);
     showThumbnails(showThumbs);
     menu.layoutChanged = [this] { resize(x(), y(), w(), h()); };
     desktop = std::make_unique<DesktopMenu>(*this, menu);
     Fl::add_timeout(.025, tick, this);
+  }
+  void hide() override {
+    if(modelPresenter)modelPresenter->hide();
+    dx::GpuWindow::hide();
   }
   ~Viewer() {
     Fl::remove_timeout(tick, this);
@@ -281,11 +405,15 @@ public:
     canvas.resize(showThumbs ? 190 : 0, top,
                   std::max(1, w - (showThumbs ? 190 : 0)), std::max(1, h - top - 60));
     seek.resize(10, h - 55, w - 20, 20);
+    modelView.resize(canvas.x(),canvas.y(),canvas.w(),canvas.h());
     status.resize(10, h - 30, w - 20, 25);
   }
   void open() {
-    Fl_Native_File_Chooser chooser;
-    chooser.title("Open image or video");
+    // Keep the native window alive after modal dismissal: Wayland may still
+    // have key-repeat or pointer events referring to its widgets.
+    if(!openChooser) openChooser=std::make_unique<Fl_Native_File_Chooser>();
+    auto &chooser=*openChooser;
+    chooser.title("Open image, video or glTF");
     chooser.type(Fl_Native_File_Chooser::BROWSE_FILE);
     if (chooser.show() == 0)
       load(chooser.filename());
@@ -298,7 +426,46 @@ public:
         return;
       current = target;
       ++generation;
-      if (videoExtension(current)) {
+      modelFile = fsv::gltf::supported(current);
+      modelNotice.clear();
+      if (modelFile) {
+        pending.reset();
+        canvas.setImage({});
+        canvas.hide();
+        modelView.show();
+        resizable(modelView);
+        original.release();
+        metadata = Json::object();
+        undo.clear();
+        stereo.setSource({}, current.string(), {});
+        modelCamera->reset();
+        modelCamera->seconds = 0;
+        modelCamera->animation = 0;
+        modelView.setModel({});
+        if (modelPresenter)
+          modelPresenter->setModel({});
+        if (!modelMonitor)
+          modelMonitor = std::make_unique<qimgvr_model::DomeMonitor>();
+        modelLoader.open(current);
+        modelRevision = 0;
+        modelTick = std::chrono::steady_clock::now();
+        copy_label((current.filename().string() + " — qimgvr glTF").c_str());
+        message("Loading glTF " + current.filename().string() + "...");
+      } else {
+        modelLoader.clear();
+        modelView.setModel({});
+        modelView.hide();
+        canvas.show();
+        resizable(canvas);
+        if (modelPresenter) {
+          modelPresenter->hide();
+          modelPresenter->setModel({});
+        }
+        modelMonitor.reset();
+      }
+      if (modelFile) {
+        // Model loading is asynchronous and never enters the image/SBS worker.
+      } else if (videoExtension(current)) {
         pending.reset();
         canvas.setVideo(current.string());
         original.release();
@@ -314,7 +481,8 @@ public:
       std::error_code ec;
       for (auto &file : fs::directory_iterator(current.parent_path(), ec))
         if (file.is_regular_file(ec) &&
-            (imageExtension(file.path()) || videoExtension(file.path())))
+            (imageExtension(file.path()) || videoExtension(file.path()) ||
+             fsv::gltf::supported(file.path())))
           files.push_back(file.path());
       std::sort(files.begin(), files.end());
       auto it = std::find(files.begin(), files.end(), current);
@@ -339,8 +507,9 @@ public:
       navigate(1);
     else if (name == "Previous")
       navigate(-1);
-    else if (name == "Fit")
-      canvas.resetView();
+    else if (name == "Fit") {
+      if(modelFile)modelView.reset();else canvas.resetView();
+    }
     else if (name == "Actual pixels") {
       canvas.fit = false;
       canvas.zoom = 1;
@@ -358,8 +527,14 @@ public:
         dx::spawn({"mpvr", current.string()});
     } else if (name == "Save as...")
       save();
-    else if (name == "Metadata") {
-      auto dialog = new dx::GpuWindow(650, 500, "Image metadata");
+    else if (name == "Export as glTF...") {
+      try {
+        if(!exportReady()) throw std::runtime_error("Wait for the current stereo still image to finish rendering");
+        gltfExport.choose(stereo.exportPixels(),current.string(),[this](const std::string &text){message(text);});
+      }
+      catch(const std::exception &e) {message(e.what());}
+    } else if (name == "Metadata") {
+      auto dialog = new dx::GpuWindow(650, 500, modelFile?"glTF model metadata":"Image metadata");
       auto text = new Fl_Multiline_Output(10, 10, 630, 480);
       text->value(description.c_str());
       dialog->end();
@@ -414,12 +589,29 @@ public:
         } catch (...) {
           message("Enter a number of seconds");
         }
+    } else if(name=="Reset model camera") {
+      modelView.reset();
+    } else if(name=="Reference image view") {
+      modelView.reset();
+    } else if(name=="Fit model bounds") {
+      modelView.reset();modelCamera->reference=false;
+    } else if(name=="Play or pause animation") {
+      modelCamera->playing=!modelCamera->playing;
+    } else if(name=="Next animation") {
+      if(auto m=modelView.asset();m && !m->animations.empty()) {
+        modelCamera->animation=(modelCamera->animation+1)%m->animations.size();modelCamera->seconds=0;
+        message("Animation: "+m->animations[modelCamera->animation].name);
+      }
+    } else if(name=="Orbit automatically") {
+      modelCamera->orbit=!modelCamera->orbit;
+    } else if(name=="Close stereo view") {
+      setStereo("off");
     } else if (name == "Off")
-      stereo.setMode("off");
+      setStereo("off");
     else if (name == "Auto when headset connected")
-      stereo.setMode("auto");
+      setStereo("auto");
     else if (name == "Always (XR or preview)")
-      stereo.setMode(stereo.active() ? "off" : "always");
+      setStereo(modelFile?(modelStereoMode=="always"?"off":"always"):(stereo.active()?"off":"always"));
     else if (name == "Input: Auto")
       stereo.setLayout("auto");
     else if (name == "Input: 2D")
@@ -462,30 +654,67 @@ public:
     }
     return dx::GpuWindow::handle(e);
   }
-  void setStereo(std::string mode) { stereo.setMode(std::move(mode)); }
+  void setStereo(std::string mode) { modelStereoMode=mode;stereo.setMode(std::move(mode)); }
   void setInputLayout(std::string value) { stereo.setLayout(std::move(value)); }
-  void smoke(const fs::path &output) {
+  bool smoke(const fs::path &output) {
     auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-    while ((loading.valid() || canvas.video()) &&
+    while ((loading.valid() || canvas.video() ||
+            (modelFile && modelLoader.snapshot().loading)) &&
            std::chrono::steady_clock::now() < deadline) {
       Fl::wait(.025);
       if (canvas.video() && canvas.duration() > 0)
         break;
     }
-    for (int i = 0; i < 5; ++i)
-      Fl::wait(.05);
-    canvas.flush();
-    canvas.snapshot(output.string() + ".canvas.ppm");
+    // Fast model loads can finish before FLTK's first timer fires. Settle by
+    // elapsed time and explicitly consume loader state before taking QA frames.
+    auto settle=std::chrono::steady_clock::now()+std::chrono::milliseconds(250);
+    do { poll();Fl::wait(.025); } while(std::chrono::steady_clock::now()<settle);
+    if (modelFile) {
+      modelView.snapshot(output.string() + ".canvas.ppm");
+      auto m = modelView.asset();
+      std::ofstream(output.string() + ".json") << Json{
+          {"model", true},
+          {"loaded", bool(m)},
+          {"error", !modelView.failure().empty()
+                        ? modelView.failure()
+                        : modelLoader.snapshot().error},
+          {"triangles", m ? m->triangleCount() : 0},
+          {"images", m ? m->images.size() : 0},
+          {"animations", m ? m->animations.size() : 0},
+          {"frames", modelView.frames},
+          {"stereoFrames", modelPresenter ? modelPresenter->stereoFrames : 0},
+          {"referenceView",
+           m && m->stereoReference.has_value() &&
+               modelCamera->reference}}.dump(2);
+    } else {
+      canvas.flush();
+      canvas.snapshot(output.string() + ".canvas.ppm");
+    }
     dx::screenshot(*this, output.c_str());
+    return !modelFile || (modelView.asset() && modelView.failure().empty() &&
+                          modelLoader.snapshot().error.empty());
   }
 };
 int main(int argc, char **argv) try {
+  // SBS is an opt-in identity for the image presenter only. FLTK otherwise
+  // inherits the first window's class into its file and confirmation dialogs.
+  Fl_Window::default_xclass("qimgvr");
   std::string presenter, title = "qimgvr — SBS image", sbs = "auto",
                          inputLayout = "auto";
-  fs::path file, smoke;
+  fs::path file, smoke, exportGltf;
   bool dome = false;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
+    if(arg=="--help") {
+      puts("qimgvr [--sbs=auto|always|off] [--input-layout=auto|2d|full-sbs|half-sbs] IMAGE|VIDEO|MODEL.glb|MODEL.gltf\n"
+           "qimgvr --export-gltf OUTPUT.glb|OUTPUT.gltf --input-layout=full-sbs|half-sbs STEREO_IMAGE\n"
+           "glTF export is a prototype textured relief with approximate stereo depth.");
+      return 0;
+    }
+    if(arg=="--export-gltf") {
+      if(++i>=argc) throw std::invalid_argument("--export-gltf requires a filename");
+      exportGltf=argv[i];continue;
+    }
     if (arg == "--version") {
       puts("qimgvr FLTK 1.4.5 OpenGL + OpenCV + Exiv2 + libmpv");
       return 0;
@@ -547,6 +776,23 @@ int main(int argc, char **argv) try {
   if (inputLayout != "auto" && inputLayout != "2d" &&
       inputLayout != "full-sbs" && inputLayout != "half-sbs")
     throw std::invalid_argument("Unsupported SBS input layout");
+  if(!exportGltf.empty()) {
+    if(file.empty() || (inputLayout!="full-sbs" && inputLayout!="half-sbs"))
+      throw std::invalid_argument("--export-gltf requires a rendered stereo image and explicit --input-layout=full-sbs or half-sbs");
+    if(fs::absolute(file).lexically_normal()==fs::absolute(exportGltf).lexically_normal())
+      throw std::invalid_argument("Export must not replace the source stereo image");
+    auto pixels=readImage(file).rgba;
+    if(pixels.cols%2) throw std::invalid_argument("SBS image width must be even");
+    if(inputLayout=="half-sbs") {
+      cv::Mat left,right,expanded;
+      int eye=pixels.cols/2;
+      cv::resize(pixels(cv::Rect(0,0,eye,pixels.rows)),left,cv::Size(eye*2,pixels.rows),0,0,cv::INTER_CUBIC);
+      cv::resize(pixels(cv::Rect(eye,0,eye,pixels.rows)),right,cv::Size(eye*2,pixels.rows),0,0,cv::INTER_CUBIC);
+      cv::hconcat(left,right,expanded);pixels=expanded;
+    }
+    puts(qimgvr::exportStereoGltf(pixels,exportGltf,file.string()).summary().c_str());
+    return 0;
+  }
   if (!presenter.empty()) {
     if (dome || getenv("WAYLAND_DISPLAY"))
       setenv("FLTK_BACKEND", "wayland", 1);
@@ -577,7 +823,7 @@ int main(int argc, char **argv) try {
   dx::style(&viewer);
   viewer.show();
   if (!smoke.empty()) {
-    viewer.smoke(smoke);
+    if(!viewer.smoke(smoke))return 1;
     puts("{\"toolkit\":\"FLTK\",\"renderer\":\"OpenGL\",\"mpv\":true,\"sbs\":"
          "true}");
     return 0;

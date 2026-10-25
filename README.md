@@ -9,7 +9,7 @@ shortcuts, settings, command-line flags and remaining limitations.
 ## Default FLTK build
 
 Requires C++17, CMake, the de-xr patched **FLTK 1.4.5** shared libraries,
-OpenGL/EGL, OpenCV core/imgcodecs/imgproc, Exiv2, libmpv, Fontconfig, GIO,
+OpenGL/EGL, OpenCV core/imgcodecs/imgproc/calib3d, Exiv2, libmpv, Fontconfig, GIO,
 Wayland/X11 development libraries and `wayland-scanner`. Native bitmap-font,
 Wayland app-ID and popup/dialog patches are required; see
 [FLTK notes](FLTK_EXPERIMENT.md). Use the matching runtime when launching.
@@ -65,6 +65,11 @@ its interpreter (default `/opt/arc-sbs/venv/bin/python` if present, otherwise
 drivers. `QIMGVR_SBS_DEVICE` and `QIMGVR_SBS_RENDERER` override worker settings.
 Normal viewing does not require the depth model. Inside DomeD, stereo surfaces
 use its verified XR Wayland socket without creating a second XR session.
+
+The FLTK frontend supports **Export as glTF...** for rendered stereo stills,
+plus native `.glb` / `.gltf` viewing with model controls, animation and tracked
+stereo presentation. Reconstruction is an approximate textured relief, not a
+complete recovered scene. See [usage, limits and validation](docs/GLTF_EXPORT_PROTOTYPE.md).
 
 FLTK exports native command menus where supported, uses native FLTK file
 choosers and follows DomeD's palette/bitmap font live. Its settings are in

@@ -1,0 +1,20 @@
+{
+  "repository": "https://github.com/jebot-git/fsv-xr",
+  "commit": "983be29744aab3363e3aace29fe8f0fd651da62b",
+  "license": "MIT (SPDX notices retained)",
+  "files": {
+    "gltf-model.cpp": "1a0f4022367800a999dac490cdf38eebb807a176ee097f6b17d05b6dac03cae5",
+    "gltf-model.h": "ffaa23df1648821f59b17325e032bbe62dee7705941318536cc854f874e78763",
+    "gltf-render.cpp": "809163f094466991a8579ac0d8feb38ee5cf90722a657dea12b51d73d8e9485a",
+    "gltf-render.h": "6065a2b2250b9f1716a54bb4b334e3f124ed63e59e4ea8ffbeb8fd607aee86f5",
+    "object-math.h": "0e758566744b3a2777397be1e5033059303b13910a232b5e9330207df1b0712e",
+    "object-interaction.cpp": "04d2b30671dbba8786a4190eb65a23215bef7bb987f14c66d121acd76dd7a1a5",
+    "object-interaction.h": "649d6cbe0cccdafa64b4c867e47262084db9788fdb0852e4c35eb39478056bc0",
+    "model-loader.cpp": "73ab8bae88783248e0c3cd75e2f1f9de2192e6a41beb7f19c2382ba7f9a0e418",
+    "model-loader.h": "2ceb5383630fa98d384a240e28b9e2ccb772a61357121a6604ab90d995683479"
+  },
+  "adaptations": [
+    "gltf-model.cpp includes use qimgvr third_party paths",
+    "Optional qimgvr stereo-relief camera metadata in Model/gltf-model.cpp; generic glTF geometry decoding is unchanged"
+  ]
+}

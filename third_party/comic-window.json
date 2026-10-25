@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/jebot-git/comic-chat-xr",
+  "commit": "8e34a2e999a12189b3d659ac315ccce03313a22f",
+  "license": "MIT (SPDX notices retained)",
+  "files": {
+    "native/src/domed.cpp": "1b43f2a529021aa666af0a7c86a4bda4593e71f320a8c57ac07fc0157dfab297",
+    "native/src/domed.h": "03a7e1de786d4fd96ccb74cb299b7838f1c2612f97ad04c380b61584ed533a9f",
+    "native/graphics/window-stereo.h": "8fa9cbd824c35c8b3088f134e5e4cc5ddf06c7922c27f320d7fbbd3213658b26"
+  },
+  "adaptations": [
+    "namespace qimgvr_model",
+    "select own PID and org.qimgvr.Sbs windows",
+    "omit unused launch-realm selection helper",
+    "use existing read-only geometry response containing all compositor window quads"
+  ]
+}

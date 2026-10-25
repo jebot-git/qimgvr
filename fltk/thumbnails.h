@@ -49,6 +49,9 @@ public:
       pending = std::async(std::launch::async, [path] {
         cv::Mat thumb;
         try {
+          auto extension=path.extension().string();
+          std::transform(extension.begin(),extension.end(),extension.begin(),::tolower);
+          if(extension==".glb" || extension==".gltf")return std::make_pair(path.string(),thumb);
           auto input = cv::imread(path.string(), cv::IMREAD_REDUCED_COLOR_4);
           if (!input.empty()) {
             double scale = std::min(160. / input.cols, 75. / input.rows);
