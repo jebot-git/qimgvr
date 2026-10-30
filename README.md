@@ -33,6 +33,31 @@ The source Qt `install-local.py` helper does not currently select Qt in CMake,
 so use the explicit Qt configuration below rather than treating it as the FLTK
 installer. Staging the manual explicitly works for the FLTK target.
 
+### Headless OpenCV
+
+The FLTK viewer does not use OpenCV HighGUI or require Qt/GTK. Distribution
+development metapackages can nevertheless pull HighGUI through the calibration
+and feature-detection headers. A private OpenCV build avoids that dependency:
+
+```sh
+cmake -S /path/to/opencv -B build-opencv -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/fltk-vr/opencv \
+  -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_LIST=core,imgproc,imgcodecs,calib3d \
+  -DWITH_QT=OFF -DWITH_GTK=OFF -DWITH_VTK=OFF \
+  -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF \
+  -DBUILD_opencv_apps=OFF -DBUILD_JAVA=OFF -DBUILD_opencv_python3=OFF
+cmake --build build-opencv --parallel
+DESTDIR="$PWD/opencv-stage" cmake --install build-opencv
+```
+
+After installing the reviewed OpenCV payload, configure qimgvr with
+`-DOpenCV_DIR=/opt/fltk-vr/opencv/lib/cmake/opencv4` and
+`-DDE_XR_OPENCV_RUNTIME_DIR=/opt/fltk-vr/opencv/lib`. The latter adds the private
+library directory to the installed viewer's runtime search path. Build and stage
+as the regular user. Run `native-images` and the model/image checks before
+removing distribution OpenCV packages. The OpenCV 4.10.0 build automatically
+includes its non-GUI `features2d` and `flann` dependencies.
+
 ## FLTK use and controls
 
 ```sh
